@@ -4,7 +4,34 @@ import subprocess
 import re
 import sys
 
+from pycparser import c_parser, c_ast
+from cStringIO import StringIO
+
 file_compat_ioctl_list = "/home/bamvor/works/source/small_tools_collection/abi_helper/compat_ioctl_list"
+
+class __redirection__:
+    def __init__(self):
+        self.buff=''
+        self.__console__=sys.stdout
+
+    def write(self, output_stream):
+        self.buff+=output_stream
+
+    def to_console(self):
+        sys.stdout=self.__console__
+        print self.buff
+
+    def to_file(self, file_path):
+        f=open(file_path,'w')
+        sys.stdout=f
+        print self.buff
+        f.close()
+
+    def flush(self):
+        self.buff=''
+
+    def reset(self):
+        sys.stdout=self.__console__
 
 def cscope(cmd):
 #    print cmd
@@ -28,6 +55,14 @@ def cscope_parser(cscope_line):
 #    print "cscope parser result: " + filename + ", " + called + ", " + linenum + ", " + code
     return (filename, called, linenum, code)
 
+def get_variable_type(var_def):
+    print var_def
+    a = __redirection__()
+    parser = c_parser.CParser()
+    ast = parser.parse(var_def, filename='<none>')
+    ast.show(a)
+    print a.buff
+
 def get_variable(calling_relation):
     (filename, func, called, linenum, var) = calling_relation
 
@@ -40,6 +75,7 @@ def get_variable(calling_relation):
     element = cscope_parser(func_var[0])
     if element and element[3]:
         var_definition = element[3]
+        get_variable_type(var_definition)
         return (filename, func, called, linenum, var, var_definition)
     else:
         return None
@@ -94,7 +130,7 @@ for l in compat_ioctl_list:
         func = re.sub(r'^.*:(.*)$', r'\1', l)
         compat_ioctl_func.append(func)
 
-#compat_ioctl_func = ['binder_ioctl']
+compat_ioctl_func = ['binder_ioctl']
 compat_ioctl_func_no_found = []
 for func in compat_ioctl_func:
     calleds_user_func = []
