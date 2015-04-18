@@ -11,27 +11,16 @@ file_compat_ioctl_list = "/home/bamvor/works/source/small_tools_collection/abi_h
 
 class __redirection__:
     def __init__(self):
-        self.buff=''
+        self.buff=[]
         self.__console__=sys.stdout
+        self.current_line = ''
 
     def write(self, output_stream):
-        self.buff+=output_stream
-
-    def to_console(self):
-        sys.stdout=self.__console__
-        print self.buff
-
-    def to_file(self, file_path):
-        f=open(file_path,'w')
-        sys.stdout=f
-        print self.buff
-        f.close()
-
-    def flush(self):
-        self.buff=''
-
-    def reset(self):
-        sys.stdout=self.__console__
+        if output_stream == '\n':
+            self.buff.append(self.current_line)
+            self.current_line = ''
+        else:
+            self.current_line += output_stream
 
 def cscope(cmd):
 #    print cmd
@@ -45,7 +34,7 @@ def cscope(cmd):
 
 #match: filename func_called line_number code
 def cscope_parser(cscope_line):
-    m = re.match(r'^([\w\-/]*\.[ch]) (\w+) ([0-9]+) (.+)$', cscope_line)
+    m = re.match(r'^([\w\-/]*\.[ch]) (<?\w+>?) ([0-9]+) (.+)$', cscope_line)
     if not m:
        return None
     filename = m.group(1)
@@ -55,15 +44,65 @@ def cscope_parser(cscope_line):
 #    print "cscope parser result: " + filename + ", " + called + ", " + linenum + ", " + code
     return (filename, called, linenum, code)
 
-def get_variable_type(var_def):
-    print var_def
+def get_variable_type(var_name, var_def):
+#    print var_def
+    var_root_name = None
+    var_root_type_name = None
+    var_root_type = None
     a = __redirection__()
     parser = c_parser.CParser()
-    ast = parser.parse(var_def, filename='<none>')
-    ast.show(a)
-    print a.buff
+    try:
+        ast = parser.parse(var_def, filename='<none>')
+    except:
+        return None
 
-def get_variable(calling_relation):
+    ast.show(a)
+#    print a.buff
+    for line in a.buff:
+        #'    TypeDecl: bwr, []', '
+        m = re.match(r'^\s*TypeDecl: (\w*),.*$', line)
+        if m and m.group(1) and m.group(1) == var_name:
+            var_root_name = m.group(1)
+#            print "var_root_name: <" + var_root_name + ">"
+            continue
+
+        if var_root_name:
+            #'      Struct: binder_write_read'
+            m = re.match(r'^\s*(\w*): (\w*)$', line)
+            if m and m.group(2):
+                var_root_type_name = m.group(1)
+                var_root_type = m.group(2)
+                print "    1: var_root_type_name: <" + var_root_type_name + ">, var_root_type: <" + var_root_type + ">"
+                break
+
+            #"        IdentifierType: ['char']"
+            m = re.match(r'''^\s*IdentifierType: \[['"](\w*)['"]\]$''', line)
+            if  m and m.group(1):
+#                print "#########"
+                var_root_type_name = ''
+                var_root_type = m.group(1)
+                print "    2: var_root_type_name: <" + var_root_type_name + ">, var_root_type: <" + var_root_type + ">"
+                break
+
+            #"      IdentifierType: ['unsigned', 'int']",
+            #FIXME: may this varible is not the var found before
+            #       get_variable, But it is ok for now. Because
+            #       all the variable at the same line should be
+            #       the SAME root type
+            m = re.match(r'''^\s*IdentifierType: \[['"](\w*)['"], ['"](\w*)['"]\]$''', line)
+            if  m and m.group(2):
+                var_root_type_name = ''
+                var_root_type = m.group(1) + ' ' + m.group(2)
+                print "    3: var_root_type_name: <" + var_root_type_name + ">, var_root_type: <" + var_root_type + ">"
+                break
+            else:
+                return None
+
+    print "    var is: " + var_root_type_name + ", " + var_root_type + ", " + var_root_name
+    return (var_root_type_name, var_root_type, var_root_name)
+
+def get_variable(calling_relation, hand):
+    print calling_relation
     (filename, func, called, linenum, var) = calling_relation
 
     m = re.match(r'^(&?)(\w+)([.->]+(.*))?', var)
@@ -71,16 +110,63 @@ def get_variable(calling_relation):
 
     cscope_var = cscope("-f cscope.out -d -l -L -0" + base_var)
     cscope_var = [line.strip() for line in cscope_var]
-    func_var = [x for i, x in enumerate(cscope_var) if re.search(func, x)]
-    element = cscope_parser(func_var[0])
-    if element and element[3]:
-        var_definition = element[3]
-        get_variable_type(var_definition)
-        return (filename, func, called, linenum, var, var_definition)
-    else:
-        return None
+#    func_var = [x for i, x in enumerate(cscope_var) if re.search(func, x)]
+#    element = cscope_parser(func_var[0])
+#    element = cscope_parser(func_var[0])
+    element = ()
+    func_var = []
+    for x in cscope_var:
+        element = cscope_parser(x)
+        if element and element[1] == '<global>':
+            print "  Found the global definition line in line <" + x + ">"
+            var_definition_global = element[3]
+        elif element and element[1] == func:
+            print "  Found the first line in function<" + func + "> in line <" + x + ">"
+            var_definition = element[3]
+            break
 
-def get_called_user_func(func, calleds_user, max_tries):
+    var_root = None
+    if var_definition:
+        var_root = get_variable_type(base_var, var_definition)
+        if not var_root:
+            m = re.match(r'^(\w+) .*$', var_definition)
+            predefined = m.group(1)
+            var_root = get_variable_type(base_var, "typedef void* " + predefined + ";" + var_definition)
+
+        if not var_root:
+            var_definition_hand = var_definition + ";"
+            print "  var_definition_hand: " + var_definition_hand
+            var_root = get_variable_type(base_var, var_definition_hand)
+            if var_root:
+                hand.write(var_definition + "\n")
+                hand.write(var_definition_hand+ "\n")
+                hand.flush()
+
+        if var_root:
+            return (filename, func, called, linenum, var, var_definition, var_root)
+
+    if var_definition_global and (not var_root):
+        var_root = get_variable_type(base_var, var_definition)
+        if not var_root:
+            m = re.match(r'^(\w+) .*$', var_definition)
+            predefined = m.group(1)
+            var_root = get_variable_type(base_var, "typedef void* " + predefined + ";" + var_definition)
+
+        if var_root:
+            return (filename, func, called, linenum, var, var_definition, var_root)
+
+    if not var_root:
+        print "  Parse <" + var_definition + "> failed"
+        var_definition_hand = input('  Please input the correct type: ')
+        var_root = get_variable_type(base_var, var_definition_hand)
+        hand.write(var_definition + "\n")
+        hand.write(var_definition_hand+ "\n")
+        hand.flush()
+        return (filename, func, called, linenum, var, var_definition, var_root)
+
+    return None
+
+def get_called_user_func(func, calleds_user, max_tries, hand):
 #    cscope_calleds = cscope("-f /home/bamvor/works/source/kernel/linux/cscope.out -d -l -L -2" + func)
     cscope_calleds = cscope("-f cscope.out -d -l -L -2" + func)
     cscope_calleds = [line.strip() for line in cscope_calleds]
@@ -96,8 +182,7 @@ def get_called_user_func(func, calleds_user, max_tries):
                     m = re.match(r'^.*' + called + '\(([a-zA-Z_0-9\-&>.()\[\]]+),.*$', code)
                     if m and m.group(0) and m.group(1):
                         calling_relation = (element[0], func, element[1], element[2], m.group(1))
-#                        print calling_relation
-                        calling_relation = get_variable(calling_relation)
+                        calling_relation = get_variable(calling_relation, hand)
                         calleds_user.append(calling_relation);
                     else:
                         print "####Could not handle <" + code + ">####"
@@ -106,7 +191,7 @@ def get_called_user_func(func, calleds_user, max_tries):
                     return
                 elif called != 'pr_info':
                     if max_tries - 1 > 0:
-                        get_called_user_func(called, calleds_user, max_tries - 1)
+                        get_called_user_func(called, calleds_user, max_tries - 1, hand)
 #                    else:
 #                        print "max tries encounter. return"
             else:
@@ -130,15 +215,24 @@ for l in compat_ioctl_list:
         func = re.sub(r'^.*:(.*)$', r'\1', l)
         compat_ioctl_func.append(func)
 
-compat_ioctl_func = ['binder_ioctl']
+#compat_ioctl_func = ['binder_ioctl']
 compat_ioctl_func_no_found = []
+hand = open('compat_ioctl_func_by_hand.txt', 'a')
+i = 0
 for func in compat_ioctl_func:
+    print "###########################################################"
     calleds_user_func = []
-    get_called_user_func(func, calleds_user_func, 3)
+    get_called_user_func(func, calleds_user_func, 3, hand)
     if calleds_user_func:
-        print func + ": "
+        print "<" + str(i) + "> " + func + ": "
         print calleds_user_func
     else:
         compat_ioctl_func_no_found.append(func);
 
+    i+=1
+
+hand.close()
+
 print "copy_from_user or get_user is not found in the following compat_ioctl functions"
+print compat_ioctl_func_no_found
+
