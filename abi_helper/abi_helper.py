@@ -51,6 +51,7 @@ def get_variable_type(var_name, var_def):
     var_root_type = None
     a = __redirection__()
     parser = c_parser.CParser()
+    var_def = re.sub(r'\s__user\s', '', var_def)
     try:
         ast = parser.parse(var_def, filename='<none>')
     except:
@@ -98,10 +99,12 @@ def get_variable_type(var_name, var_def):
             else:
                 return None
 
-    print "    var is: " + var_root_type_name + ", " + var_root_type + ", " + var_root_name
+    if var_root_name:
+        print "    var is: " + var_root_type_name + ", " + var_root_type + ", " + var_root_name
     return (var_root_type_name, var_root_type, var_root_name)
 
 def get_variable(calling_relation, hand):
+    var_definition_global = None
     print calling_relation
     (filename, func, called, linenum, var) = calling_relation
 
@@ -117,7 +120,7 @@ def get_variable(calling_relation, hand):
     func_var = []
     for x in cscope_var:
         element = cscope_parser(x)
-        if element and element[1] == '<global>':
+        if element and element[1] == '<global>' and (not var_definition_global):
             print "  Found the global definition line in line <" + x + ">"
             var_definition_global = element[3]
         elif element and element[1] == func:
@@ -130,8 +133,9 @@ def get_variable(calling_relation, hand):
         var_root = get_variable_type(base_var, var_definition)
         if not var_root:
             m = re.match(r'^(\w+) .*$', var_definition)
-            predefined = m.group(1)
-            var_root = get_variable_type(base_var, "typedef void* " + predefined + ";" + var_definition)
+            if m and m.group(1):
+                predefined = m.group(1)
+                var_root = get_variable_type(base_var, "typedef void* " + predefined + ";" + var_definition)
 
         if not var_root:
             var_definition_hand = var_definition + ";"
@@ -145,19 +149,27 @@ def get_variable(calling_relation, hand):
         if var_root:
             return (filename, func, called, linenum, var, var_definition, var_root)
 
-    if var_definition_global and (not var_root):
-        var_root = get_variable_type(base_var, var_definition)
-        if not var_root:
-            m = re.match(r'^(\w+) .*$', var_definition)
-            predefined = m.group(1)
-            var_root = get_variable_type(base_var, "typedef void* " + predefined + ";" + var_definition)
-
-        if var_root:
-            return (filename, func, called, linenum, var, var_definition, var_root)
+#    if var_definition_global and (not var_root):
+#        var_root = get_variable_type(base_var, var_definition)
+#        if not var_root:
+#            m = re.match(r'^(\w+) .*$', var_definition)
+#            predefined = m.group(1)
+#            var_root = get_variable_type(base_var, "typedef void* " + predefined + ";" + var_definition)
+#
+#        if var_root:
+#            return (filename, func, called, linenum, var, var_definition, var_root)
 
     if not var_root:
         print "  Parse <" + var_definition + "> failed"
-        var_definition_hand = input('  Please input the correct type: ')
+        if var_definition_global:
+            print '  Please input the correct type, leave empty for using the following global definition: <' + var_definition_global + '>: '
+            try:
+                var_definition_hand = input('  : ')
+            except:
+                var_definition_hand = var_definition_global
+        else:
+            var_definition_hand = input('  Please input the correct type:')
+
         var_root = get_variable_type(base_var, var_definition_hand)
         hand.write(var_definition + "\n")
         hand.write(var_definition_hand+ "\n")
@@ -217,9 +229,18 @@ for l in compat_ioctl_list:
 
 #compat_ioctl_func = ['binder_ioctl']
 compat_ioctl_func_no_found = []
+nt_found = open('compat_ioctl_func_no_found.txt', 'a')
 hand = open('compat_ioctl_func_by_hand.txt', 'a')
 i = 0
+start = False
 for func in compat_ioctl_func:
+#    if func == "compat_raw_ioctl":
+#        start = True
+#
+#    if not start:
+#        i+=1
+#        continue
+
     print "###########################################################"
     calleds_user_func = []
     get_called_user_func(func, calleds_user_func, 3, hand)
@@ -227,11 +248,13 @@ for func in compat_ioctl_func:
         print "<" + str(i) + "> " + func + ": "
         print calleds_user_func
     else:
-        compat_ioctl_func_no_found.append(func);
+        nt_found.write(func + "\n")
+        nt_found.flush()
 
     i+=1
 
 hand.close()
+nt_found.close()
 
 print "copy_from_user or get_user is not found in the following compat_ioctl functions"
 print compat_ioctl_func_no_found

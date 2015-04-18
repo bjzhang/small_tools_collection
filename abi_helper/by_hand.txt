@@ -1,0 +1,42 @@
+struct pmcraid_ioctl_header *hdr
+struct pmcraid_ioctl_header *hdr;
+static int vmci_host_get_version(struct vmci_host_dev *vmci_host_dev,
+struct vmci_host_dev *vmci_host_dev;
+unsigned int cmd, unsigned long arg)
+unsigned int cmd, unsigned long arg;
+if (on_close_chsc_area) {
+static struct chsc_async_area *on_close_chsc_area;
+read_cpu = 0;
+static char read_cpu;
+struct pmcraid_ioctl_header *hdr
+struct pmcraid_ioctl_header *hdr;
+static int vmci_host_get_version(struct vmci_host_dev *vmci_host_dev,
+struct vmci_host_dev *vmci_host_dev;
+unsigned int cmd, unsigned long arg)
+unsigned int cmd, unsigned long arg;
+if (on_close_chsc_area) {
+static struct chsc_async_area *on_close_chsc_area;
+} data;
+struct ion_test_rw_data test_rw;
+unsigned int cmd, unsigned long arg)
+unsigned int cmd, unsigned long arg;
+int perm, struct console_font_op *op, struct vc_data *vc)
+int perm, struct console_font_op *op, struct vc_data *vc;
+int compat_get_timeval(struct timeval *tv, const void __user *utv)
+int compat_get_timeval(struct timeval *tv, const void __user *utv);
+} *argv = data;
+struct nvif_ioctl_v0 v0;
+} karg;
+int vi;
+xfs_flock64_t *bf,
+xfs_flock64_t *bf;
+struct xfs_growfs_data *in,
+struct xfs_growfs_data *in;
+struct xfs_growfs_rt *in,
+struct xfs_growfs_rt *in;
+rc = get_user(ipx_sk(sk)->ipx_ncp_conn,
+struct sock *sk;
+rc = copy_to_user(argp, &x25->facilities,
+struct x25_facilities facilities;
+struct snd_ctl_elem_value *data,
+struct snd_ctl_elem_value *data;
