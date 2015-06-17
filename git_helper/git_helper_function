@@ -1,8 +1,14 @@
 git_format_patch () {
-	echo "format-patch from $1"
-	num=1
-	for c in `$1`; do
-		git format-patch -1 $c --start-number $num
-		num=$((num+1))
-	done
+	GIT_LOG=$1
+	if [ "X$GIT_LOG" != "X" ]; then
+		echo "format-patch from $GIT_LOG"
+		num=1
+		for c in `$1`; do
+			git format-patch -1 $c --start-number $num
+			num=$((num+1))
+		done
+	else
+		echo "Usage: "
+		echo "    git_format_patch \"git log --format=%h --reverse include/linux/time64.h\""
+	fi
 }
