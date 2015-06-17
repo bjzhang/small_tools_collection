@@ -1,0 +1,8 @@
+git_format_patch () {
+	echo "format-patch from $1"
+	num=1
+	for c in `$1`; do
+		git format-patch -1 $c --start-number $num
+		num=$((num+1))
+	done
+}
