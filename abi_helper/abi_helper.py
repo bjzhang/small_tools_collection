@@ -101,9 +101,14 @@ def get_variable_type(var_name, var_def):
 
     if var_root_name:
         print "    var is: " + var_root_type_name + ", " + var_root_type + ", " + var_root_name
-    return (var_root_type_name, var_root_type, var_root_name)
 
-def get_variable(calling_relation, hand):
+    if var_root_type_name:
+        var_root_type_name = re.sub(r'Struct', r'struct', var_root_type_name)
+        return var_root_type_name + " " + var_root_type + " " + var_root_name
+    else:
+        return var_root_type + " " + var_root_name
+
+def get_variable(calling_relation, hand, not_found):
     var_definition_global = None
     print calling_relation
     (filename, func, called, linenum, var) = calling_relation
@@ -163,12 +168,17 @@ def get_variable(calling_relation, hand):
         print "  Parse <" + var_definition + "> failed"
         if var_definition_global:
             print '  Please input the correct type, leave empty for using the following global definition: <' + var_definition_global + '>: '
+            print '  input SKIP to skip this'
             try:
                 var_definition_hand = input('  : ')
             except:
                 var_definition_hand = var_definition_global
         else:
             var_definition_hand = input('  Please input the correct type:')
+
+        if var_definition_hand == "SKIP":
+            not_found.write(func + "\n")
+            not_found.flush()
 
         var_root = get_variable_type(base_var, var_definition_hand)
         hand.write(var_definition + "\n")
@@ -178,7 +188,7 @@ def get_variable(calling_relation, hand):
 
     return None
 
-def get_called_user_func(func, calleds_user, max_tries, hand):
+def get_called_user_func(func, calleds_user, max_tries, hand, not_found):
 #    cscope_calleds = cscope("-f /home/bamvor/works/source/kernel/linux/cscope.out -d -l -L -2" + func)
     cscope_calleds = cscope("-f cscope.out -d -l -L -2" + func)
     cscope_calleds = [line.strip() for line in cscope_calleds]
@@ -194,7 +204,7 @@ def get_called_user_func(func, calleds_user, max_tries, hand):
                     m = re.match(r'^.*' + called + '\(([a-zA-Z_0-9\-&>.()\[\]]+),.*$', code)
                     if m and m.group(0) and m.group(1):
                         calling_relation = (element[0], func, element[1], element[2], m.group(1))
-                        calling_relation = get_variable(calling_relation, hand)
+                        calling_relation = get_variable(calling_relation, hand, not_found)
                         calleds_user.append(calling_relation);
                     else:
                         print "####Could not handle <" + code + ">####"
@@ -203,7 +213,7 @@ def get_called_user_func(func, calleds_user, max_tries, hand):
                     return
                 elif called != 'pr_info':
                     if max_tries - 1 > 0:
-                        get_called_user_func(called, calleds_user, max_tries - 1, hand)
+                        get_called_user_func(called, calleds_user, max_tries - 1, hand, not_found)
 #                    else:
 #                        print "max tries encounter. return"
             else:
@@ -229,7 +239,9 @@ for l in compat_ioctl_list:
 
 #compat_ioctl_func = ['binder_ioctl']
 compat_ioctl_func_no_found = []
-nt_found = open('compat_ioctl_func_no_found.txt', 'a')
+compat_result = open('compat_ioctl_func_result.txt', 'a')
+log = open('compat_ioctl_func_log.txt', 'a')
+not_found = open('compat_ioctl_func_no_found.txt', 'a')
 hand = open('compat_ioctl_func_by_hand.txt', 'a')
 i = 0
 start = False
@@ -242,19 +254,34 @@ for func in compat_ioctl_func:
 #        continue
 
     print "###########################################################"
+    log.write("###########################################################\n")
     calleds_user_func = []
-    get_called_user_func(func, calleds_user_func, 3, hand)
+    get_called_user_func(func, calleds_user_func, 3, hand, not_found)
     if calleds_user_func:
         print "<" + str(i) + "> " + func + ": "
+        log.write("<" + str(i) + "> " + func + ": \n")
         print calleds_user_func
+        for l in calleds_user_func:
+            if l and l[6]:
+                log.write(l[0] + ' ' + l[1] + ' ' + l[2] + ' ' + l[3] + ' ' + l[4] + ' ' + l[5] + ' ' + l[6] + "\n")
+                compat_result.write(l[0] + ' ' + l[6] + "\n")
+                compat_result.flush()
+            else:
+                log.write(l[0] + ' ' + l[1] + ' ' + l[2] + ' ' + l[3] + ' ' + l[4] + ' ' + l[5] + "\n")
+                temp_s = "  could not write result, skip"
+                print temp_s
+                log.write(temp_s + "\n")
+        log.flush()
     else:
-        nt_found.write(func + "\n")
-        nt_found.flush()
+        not_found.write(func + "\n")
+        not_found.flush()
 
     i+=1
 
+compat_result.close()
+log.close()
 hand.close()
-nt_found.close()
+not_found.close()
 
 print "copy_from_user or get_user is not found in the following compat_ioctl functions"
 print compat_ioctl_func_no_found
