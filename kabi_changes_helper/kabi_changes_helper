@@ -1,0 +1,122 @@
+#!/bin/bash
+
+ARCH=arm64
+CROSS_COMPILE=aarch64-linux-gnu-
+
+usage()
+{
+	echo "TODO"
+}
+
+build_kernel()
+{
+	TAG=$1
+	SOURCE=$2
+	OUTPUT=$3
+	ARCH=arm64
+	CROSS_COMPILE=aarch64-linux-gnu-
+	#ARCH=arm
+	#CROSS_COMPILE=arm-linux-gnueabihf-
+
+	cd $SOURCE
+	echo "checkout to $TAG"
+	STATUS=`git status --porcelain | grep -v ?`
+	if [ X"$STATUS" != X ]; then
+		echo "working tree does not clean, discard(git checkout -f HEAD)?(y/n)"
+		echo "exit because working tree does not clean"
+		exit 1
+	fi
+	git checkout -f $TAG
+
+	echo "make distclean"
+	make distclean > /dev/null || (echo "build failed"; exit 1)
+
+	echo "make defconfig"
+	make ARCH=$ARCH CROSS_COMPILE=$CROSS_COMPILE defconfig > /dev/null || (echo "build failed"; exit 1)
+
+	grep "^# CONFIG_MODVERSIONS is not set$" .config
+	if [ X$? = X0 ]; then
+		sed -i "s/# CONFIG_MODVERSIONS is not set/CONFIG_MODVERSIONS=y/g" .config
+	else
+		echo "WARNING: CONFIG_MODVERSIONS not found"
+		echo "CONFIG_MODVERSIONS=y" >> .config
+	fi
+
+	echo "build kernel"
+	make ARCH=$ARCH CROSS_COMPILE=$CROSS_COMPILE KBUILD_SYMTYPES=1 -j8 > /dev/null || (echo "build failed"; exit 1)
+
+	kabi_modversions.py --pack . > Module.symtypes
+
+	mkdir -p $OUTPUT/$TAG
+	cp -p Module.symtypes Module.symvers $OUTPUT/$TAG
+
+	cd -
+}
+
+TEMP=`getopt -o h --long oldtag: --long newtag: --long source: -n '$0' -- "$@"`
+
+if [ "$?" != "0" ]; then
+	echo "Parameter process failed, Terminating..." >&2
+	exit 1
+fi
+
+eval set -- "$TEMP"
+
+while true; do
+	case "$1" in
+	-h)
+		usage
+		exit 0
+		;;
+	--oldtag)
+		OLDTAG=$2
+		shift 2
+		;;
+	--newtag)
+		NEWTAG=$2
+		shift 2
+		;;
+	--source)
+		SOURCE=$PWD
+		SOURCE+="/"
+		SOURCE+=$2
+		shift 2
+		;;
+	--)
+		shift
+		break
+		;;
+	*)
+		echo "internal error"
+		exit 1
+		;;
+	esac
+done
+
+echo $OLDTAG, $NEWTAG, $SOURCE
+if [ X$OLDTAG = X ] || [ X$NEWTAG = X ] || [ X$SOURCE = X ]; then
+	echo "missing parameter"
+	usage
+	exit 1
+fi
+
+OUTPUT=$PWD
+OUTPUT+="/"
+OUTPUT+=`date +kabi_check_%y%m%d_%H%M`
+
+build_kernel $OLDTAG $SOURCE $OUTPUT
+build_kernel $NEWTAG $SOURCE $OUTPUT
+
+cd $OUTPUT
+
+kabi_kernel_check.py $OLDTAG/Module.symvers $NEWTAG/Module.symvers  > kabi_changes
+
+while IFS='' read -r line || [[ -n "$line" ]]; do
+	#echo "Text read from file: $line"
+	sed "^#kABI: symbol .* changed\ .*$" $line
+	sed "^#kABI: symbol .* lost$" $line
+done < "kabi_changes"
+
+#kABI: symbol devm_power_supply_register_no_ws changed crc from 0x6499ba25 to 0xf1aed37e
+#kABI: symbol power_supply_get_by_phandle lost
+
