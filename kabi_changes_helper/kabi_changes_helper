@@ -77,9 +77,7 @@ while true; do
 		shift 2
 		;;
 	--source)
-		SOURCE=$PWD
-		SOURCE+="/"
-		SOURCE+=$2
+		SOURCE=$2
 		shift 2
 		;;
 	--)
@@ -93,30 +91,66 @@ while true; do
 	esac
 done
 
-echo $OLDTAG, $NEWTAG, $SOURCE
 if [ X$OLDTAG = X ] || [ X$NEWTAG = X ] || [ X$SOURCE = X ]; then
 	echo "missing parameter"
 	usage
 	exit 1
 fi
 
+echo $SOURCE | grep "^\/" > /dev/null
+if [ X$? = X1 ]; then
+	ABS=$PWD
+	ABS+="/"
+	ABS+=$SOURCE
+	SOURCE=$ABS
+fi
+echo $OLDTAG, $NEWTAG, $SOURCE
+
 OUTPUT=$PWD
 OUTPUT+="/"
 OUTPUT+=`date +kabi_check_%y%m%d_%H%M`
 
-build_kernel $OLDTAG $SOURCE $OUTPUT
-build_kernel $NEWTAG $SOURCE $OUTPUT
+OUTPUT="kabi_check_150914_1622"
+echo "output is $OUTPUT"
+#build_kernel $OLDTAG $SOURCE $OUTPUT
+#build_kernel $NEWTAG $SOURCE $OUTPUT
 
 cd $OUTPUT
 
 kabi_kernel_check.py $OLDTAG/Module.symvers $NEWTAG/Module.symvers  > kabi_changes
 
+#echo "name,changes,abi_changes_or_not,parameter_internal_changes_or_not" > ${OUTPUT}.csv
+echo "name,changes,abi_changes_or_not" > ${OUTPUT}.csv
 while IFS='' read -r line || [[ -n "$line" ]]; do
-	#echo "Text read from file: $line"
-	sed "^#kABI: symbol .* changed\ .*$" $line
-	sed "^#kABI: symbol .* lost$" $line
+	#kABI: symbol devm_power_supply_register_no_ws changed crc from 0x6499ba25 to 0xf1aed37e
+	#kABI: symbol power_supply_get_by_phandle lost
+	echo $line | grep "^kABI: symbol .* changed\ .*$" > /dev/null
+	if [ X$? = X0 ]; then
+		SYM=`echo $line | sed "s/^kABI: symbol \(.*\) changed\ .*$/\1/g"`
+		API_DIFF=`kabi_symbol_or_type_analysis.py $OLDTAG $NEWTAG $SYM | grep "^eg." | sed "s/^eg: vimdiff\ //g"`
+		BREAK_SYM=`diff -urN $API_DIFF | grep "^[-+][^-^+]"`
+#		if [ X$BREAK_SYM = X ]; then
+#			API_DIFF_FULL=`kabi_symbol_or_type_analysis.py -r $OLDTAG $NEWTAG $SYM | grep "^eg." | sed "s/^eg: vimdiff\ //g"`
+#			diff -urN $API_DIFF_FULL | grep "^[-+][^-^+]" > ${SYM}.txt
+#			echo -n > ${SYM}_break.txt
+#			while IFS='' read -r break_sym_line || [[ -n "$break_sym_line" ]]; do
+#				temp_ret=`echo $break_sym_line | sed "s/[-+][st]#\([a-z0-9_][a-z0-9_]*\)\ .*$/\1/g"`
+#				echo $temp_ret >> ${SYM}_break.txt
+#			done < ${SYM}.txt
+#			BREAK_SYM_UNIQ=`sort ${SYM}_break.txt | uniq`
+#			BREAK_SYM_FULL=`echo $BREAK_SYM_UNIQ | tr -d '\r'`
+#		fi
+#		echo "$SYM,changed,$BREAK_SYM,$BREAK_SYM_FULL"
+#		echo "$SYM,changed,$BREAK_SYM,$BREAK_SYM_FULL" >> ${OUTPUT}.csv
+		echo "$SYM,changed,$BREAK_SYM"
+		echo "$SYM,changed,$BREAK_SYM" >> ${OUTPUT}.csv
+	else
+		echo $line | grep "^kABI: symbol .* lost$" > /dev/null
+		if [ X$? = X0 ]; then
+			SYM=`echo $line | sed "s/^kABI: symbol \(.*\) lost$/\1/g"`
+			echo "$SYM, lost"
+			echo "$SYM, lost" >> ${OUTPUT}.csv
+		fi
+	fi
 done < "kabi_changes"
-
-#kABI: symbol devm_power_supply_register_no_ws changed crc from 0x6499ba25 to 0xf1aed37e
-#kABI: symbol power_supply_get_by_phandle lost
 
