@@ -1,0 +1,12 @@
+
+1.  Build
+    Build kernel and kselftest through script build_kselftest.sh. The kernel need to open some configurations reference select_kernel_config_for_kselftest() in build_kselftest.sh.
+    E.g.
+    ./build_kselftest.sh --kernel origin/hikey-mainline-rebase --kselftest origin/hikey-mainline-rebase --source ../../../../works/source/kernel/linux_kselftest_arm_aarch64
+
+    You could find the dependency for building kselftest from dependency directory.
+
+2.  Run
+    1.  Copy install directory to your board.
+    2.  Run "run_kselftest.sh"
+
