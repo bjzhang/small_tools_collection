@@ -3,6 +3,14 @@
 ARCH=arm64
 CROSS_COMPILE=aarch64-linux-gnu-
 
+#dependency
+#library: libpopt.so
+#header: popt.h
+BASE=/home/bamvor/works_hdd/source/kernel/kselftest_depandency/arm64
+if [ X$ARCH = Xarm64 ]; then
+	CFLAGS="-L$BASE/usr/lib64 -I$BASE/usr/include"
+fi
+
 usage()
 {
 	echo $0 --kerenl tag_for_kernel --kselftes tag_for_kselftest --source /path/to/your/kernel/source
@@ -90,6 +98,8 @@ build_kernel()
 	SOURCE=$2
 	INSTALL=$3
 
+	echo $ARCH, $CROSS_COMPILE
+
 	cd $SOURCE
 	echo "checkout to $TAG"
 	STATUS=`git status --porcelain | grep -v ?`
@@ -122,6 +132,8 @@ build_kselftest()
 	SOURCE=$2
 	INSTALL=$3
 
+	echo $ARCH, $CROSS_COMPILE
+
 	cd $SOURCE
 	echo "checkout to $TAG"
 	STATUS=`git status --porcelain | grep -v ?`
@@ -132,9 +144,9 @@ build_kselftest()
 	git checkout -f $TAG
 
 	echo "build and install kselftest"
-	make ARCH=$ARCH CROSS_COMPILE=$CROSS_COMPILE INSTALL_HDR_PATH=$INSTALL/usr/include headers_install -j8 > /dev/null || (echo "build failed"; exit 1)
-	make ARCH=$ARCH CROSS_COMPILE=$CROSS_COMPILE -C tools/testing/selftests -j8 > /dev/null || (echo "build failed"; exit 1)
-	make ARCH=$ARCH CROSS_COMPILE=$CROSS_COMPILE INSTALL_PATH=$INSTALL/kselftest -C tools/testing/selftests install -j8 > /dev/null || (echo "build failed"; exit 1)
+	make ARCH=$ARCH CROSS_COMPILE=$CROSS_COMPILE INSTALL_HDR_PATH=$SOURCE/usr/ headers_install -j8 > /dev/null || (echo "build failed"; exit 1)
+	make ARCH=$ARCH CROSS_COMPILE=$CROSS_COMPILE CFLAGS="$CFLAGS" -C tools/testing/selftests #> /dev/null || (echo "build failed"; exit 1)
+	make ARCH=$ARCH CROSS_COMPILE=$CROSS_COMPILE CFLAGS="$CFLAGS" INSTALL_PATH=$INSTALL/kselftest -C tools/testing/selftests install #> /dev/null || (echo "build failed"; exit 1)
 
 	cd -
 }
@@ -202,6 +214,7 @@ fi
 INSTALL=$PWD
 INSTALL+="/"
 INSTALL+=`date +kselftest_%y%m%d_%H%M`
+mkdir $INSTALL
 
 build_kernel $KERNEL $SOURCE $INSTALL
 build_kselftest $KSELFTEST $SOURCE $INSTALL
