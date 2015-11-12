@@ -135,13 +135,16 @@ build_kselftest()
 	echo $ARCH, $CROSS_COMPILE
 
 	cd $SOURCE
-	echo "checkout to $TAG"
-	STATUS=`git status --porcelain | grep -v ?`
-	if [ X"$STATUS" != X ]; then
-		echo "working tree does not clean, exit"
-		exit 1
+
+	if [ X$TAG != XCURRENT ]; then
+		echo "checkout to $TAG"
+		STATUS=`git status --porcelain | grep -v ?`
+		if [ X"$STATUS" != X ]; then
+			echo "working tree does not clean, exit"
+			exit 1
+		fi
+		git checkout -f $TAG
 	fi
-	git checkout -f $TAG
 
 	echo "build and install kselftest"
 	make ARCH=$ARCH CROSS_COMPILE=$CROSS_COMPILE INSTALL_HDR_PATH=$SOURCE/usr/ headers_install -j8 > /dev/null || (echo "build failed"; exit 1)
@@ -200,15 +203,19 @@ if [ ! -d $SOURCE/.git ]; then
 	echo "$SOURCE is not a git repo"
 	exit 1
 fi
-git --git-dir $SOURCE/.git rev-list $KERNEL --max-count=1  2>/dev/null
-if [ X$? != X0 ]; then
-	echo "$KERNEL does not exist in $SOURCE"
-	exit 1
+if [ X$KERNEL != XCURRENT ]; then
+	git --git-dir $SOURCE/.git rev-list $KERNEL --max-count=1  2>/dev/null
+	if [ X$? != X0 ]; then
+		echo "$KERNEL does not exist in $SOURCE"
+		exit 1
+	fi
 fi
-git --git-dir $SOURCE/.git rev-list $KSELFTEST --max-count=1  2>/dev/null
-if [ X$? != X0 ]; then
-	echo "$KSELFTEST does not exist in $SOURCE"
-	exit 1
+if [ X$KSELFTEST != XCURRENT ]; then
+	git --git-dir $SOURCE/.git rev-list $KSELFTEST --max-count=1  2>/dev/null
+	if [ X$? != X0 ]; then
+		echo "$KSELFTEST does not exist in $SOURCE"
+		exit 1
+	fi
 fi
 
 INSTALL=$PWD
