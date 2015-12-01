@@ -4,7 +4,7 @@ ARCH=arm64
 CROSS_COMPILE=aarch64-linux-gnu-
 
 #dependency
-#library: libpopt.so
+#library: libpopt.so, libpcap.so
 #header: popt.h
 BASE=/home/bamvor/works_hdd/source/kernel/kselftest_depandency/arm64
 if [ X$ARCH = Xarm64 ]; then
@@ -221,7 +221,7 @@ fi
 INSTALL=$PWD
 INSTALL+="/"
 INSTALL+=`date +kselftest_%y%m%d_%H%M`
-mkdir $INSTALL
+mkdir -p $INSTALL
 
 build_kernel $KERNEL $SOURCE $INSTALL
 build_kselftest $KSELFTEST $SOURCE $INSTALL
