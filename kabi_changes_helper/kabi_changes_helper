@@ -5,7 +5,8 @@ CROSS_COMPILE=aarch64-linux-gnu-
 
 usage()
 {
-	echo "TODO"
+	echo "Usage:"
+	echo "$0 --oldtag vhulk3.1 --newtag vhulk3.2 --source /home/z00293696/works/source/kernel/hulk"
 }
 
 build_kernel()
@@ -57,6 +58,7 @@ TEMP=`getopt -o h --long oldtag: --long newtag: --long source: -n '$0' -- "$@"`
 
 if [ "$?" != "0" ]; then
 	echo "Parameter process failed, Terminating..." >&2
+	usage
 	exit 1
 fi
 
@@ -110,10 +112,10 @@ OUTPUT=$PWD
 OUTPUT+="/"
 OUTPUT+=`date +kabi_check_%y%m%d_%H%M`
 
-OUTPUT="kabi_check_150914_1622"
+#OUTPUT="kabi_check_150914_1622"
 echo "output is $OUTPUT"
-#build_kernel $OLDTAG $SOURCE $OUTPUT
-#build_kernel $NEWTAG $SOURCE $OUTPUT
+build_kernel $OLDTAG $SOURCE $OUTPUT
+build_kernel $NEWTAG $SOURCE $OUTPUT
 
 cd $OUTPUT
 
