@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+#http://stackoverflow.com/questions/3462143/get-difference-between-two-lists
 from __future__ import print_function
 import paramiko
 import time
@@ -7,6 +8,10 @@ import select
 import datetime
 import progressbar
 import os
+import subprocess
+
+def run_cmd_block(cmd):
+	subprocess.check_call(args = cmd)
 
 def ssh_cmd(host, user, cmd, slient=True):
 #	print("Testing on " + host + " with user: " + user + " cmd: <" + cmd + ">")
@@ -26,6 +31,21 @@ def ssh_cmd(host, user, cmd, slient=True):
 			if len(s) > 0:
 				print(s, end="")
 #		print("stderr: " + str(stderr.readlines()))
+
+def ssh_cmd_get_log(host, user, cmd):
+#	print("Testing on " + host + " with user: " + user + " cmd: <" + cmd + ">")
+#	logging.getLogger("paramiko").setLevel(logging.WARNING) ssh = paramiko.SSHClient()
+	ssh = paramiko.SSHClient()
+	ssh.load_system_host_keys()
+	ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+	ssh.connect(host, username=user, timeout=120)
+	result = []
+	for i, c in enumerate(cmd):
+		stdin,stdout,stderr = ssh.exec_command(c)
+		r = stdout.readlines()
+		result = result + r
+
+	return result
 
 def ssh_wait_connection(host, normal_user, dry_run=False):
 	while True:
@@ -89,6 +109,11 @@ def scp(host, user, src, dst, silent=True):
 	#TODO: chmod, chown
 	pbar.finish()
 
+def scp_s2s(src, src_user, dst, dst_user, src_path, dst_path):
+	ssh_cmd(dst, dst_user, ['mkdir -p ' + os.path.dirname(dst_path)], slient=True)
+	cmd = ['scp', '-p', src_user + "@" + src + ":" + src_path, dst_user + "@" + dst + ":" + dst_path]
+	run_cmd_block(cmd)
+
 def run_benchmark(host, normal_user, root_user, grubentry, total_count, test_user, testcmd, reboot=True):
 	print(host)
 	print(normal_user)
@@ -101,6 +126,7 @@ def run_benchmark(host, normal_user, root_user, grubentry, total_count, test_use
 		print(el)
 
 	ssh_wait_connection(host, normal_user)
+	print("Connection correct, starting...")
 	if reboot:
 		print("Changing grub.cfg")
 		ssh_cmd(host, root_user, ['sed -i "s/^set.default.*$/set default=' + grubentry + '/g" /boot/EFI/grub2/grub.cfg'], False)
@@ -147,20 +173,63 @@ def compile_kernel(host, user, path, commit, extra_config, dry_run=False):
 
 	ssh_transport(host, user, [cmd], dry_run)
 
+def get_files(folder):
+        for root, subFolders, files in os.walk(folder):
+                if root == folder:
+                        return files
+
 host="heyunlei"
 host_user="z00293696"
 guest="D03-02"
-guest_user="D03-02"
+guest_user="z00293696"
 guest_root="root"
 kernel_path="/home/z00293696/works/source/kernel/hulk"
 image_path=kernel_path + "/arch/arm64/boot/Image"
 kernel_install="/boot/z00293696-ilp32-test"
 ilp32_test="z00293696-ilp32-test"
+lmbench=["cd /home/z00293696/works/source/testsuite/lmbench/lmbench-3.0-a9; make rerun"]
+specint=["cd /home/z00293696/speccpu2006;. ./shrc; runspec --config=Arm64-single-core-linux64-arm64-lp64-gcc49.cfg --size=ref --noreportable --tune=base --iterations=1 bzip2 mcf hmmer libquantum"]
+config_aarch32_el0_enabled=["kernel_disable_compat_config", "kernel_disable_aarch32_el0_config", "kernel_disable_arm64_ilp32_config", "kernel_disable_arm_smmu_v3_config"]
+config_aarch32_el0_disabled=["kernel_disable_arm64_ilp32_config", "kernel_disable_arm_smmu_v3_config"]
+lmbench_log_cmd=['cd /home/z00293696/works/source/testsuite/lmbench/lmbench-3.0-a9/results/aarch64-linux-gnu; ls']
+specint_log_cmd=['cd /home/z00293696/speccpu2006/result; ls']
 
-#compile_kernel(host, host_user, kernel_path, "b43c4a1", ["kernel_disable_compat_config", "kernel_disable_aarch32_el0_config", "kernel_disable_arm64_ilp32_config"])
-#scp(guest, guest_root, image_path, kernel_install)
-run_benchmark(host=guest, normal_user=guest_user, root_user=guest_root, grubentry=ilp32_test, total_count=5, test_user=guest_user, testcmd=["cd /home/z00293696/works/source/testsuite/lmbench/lmbench-3.0-a9; make rerun"])
-run_benchmark(host=guest, normal_user=guest_user, root_user=guest_root, grubentry=ilp32_test, total_count=1, test_user=guest_root, testcmd=["cd /home/z00293696/speccpu2006;. ./shrc; runspec --config=Arm64-single-core-linux64-arm64-lp64-gcc49.cfg --size=ref --noreportable --tune=base --iterations=1 perlbench bzip2 gcc mcf gobmk hmmer sjeng libquantum h264ref omnetpp astar xalancbmk"])
+def remote_copy_log_file(src, src_user, dst, dst_user, src_dir, dst_dir, files):
+	run_cmd_block(['mkdir', '-p', dst_dir])
+	for f in files:
+		p = src_path + f.rstrip('\n')
+		scp_s2s(src, src_user, dst, dst_user, p, dst_dir)
+
+#$ git log --oneline hulk_mbi-gen-v9_ilp32 --reverse -19 | cut -d \  -f 1
+#["b43c4a1", "2f2523a", "de08b73", "31b690e", "8947bfe", "4622f2c", "2607ec2", "464c58d", "99e9119", "b5107ca", "f791ec5", "149d0db", "209fd42", "0bb5267", "71e8487", "6f346a0", "5a3a2c9", "adae8a0", "afb510f"]
+for commit in ["f791ec5", "8947bfe", "6f346a0", "b43c4a1", "2f2523a", "de08b73", "31b690e", "4622f2c", "2607ec2", "464c58d", "99e9119", "b5107ca", "149d0db", "209fd42", "0bb5267", "71e8487", "5a3a2c9", "adae8a0", "afb510f"]:
+	compile_kernel(host, host_user, kernel_path, commit, config_aarch32_el0_enabled)
+	scp_s2s(host, host_user, guest, guest_root, image_path, kernel_install)
+	files = ssh_cmd_get_log(host=guest, user=guest_user, cmd=lmbench_log_cmd)
+	print(files)
+	run_benchmark(host=guest, normal_user=guest_user, root_user=guest_root, grubentry=ilp32_test, total_count=5, test_user=guest_user, testcmd=lmbench)
+	files = ssh_cmd_get_log(host=guest, user=guest_user, cmd=lmbench_log_cmd)
+	print(files)
+
+	files = ssh_cmd_get_log(host=guest, user=guest_user, cmd=specint_log_cmd)
+	print(files)
+	run_benchmark(host=guest, normal_user=guest_user, root_user=guest_root, grubentry=ilp32_test, total_count=1, test_user=guest_root, testcmd=specint)
+	files = ssh_cmd_get_log(host=guest, user=guest_user, cmd=specint_log_cmd)
+	print(files)
+
+	compile_kernel(host, host_user, kernel_path, commit, config_aarch32_el0_disabled)
+	scp_s2s(host, host_user, guest, guest_root, image_path, kernel_install)
+	files = ssh_cmd_get_log(host=guest, user=guest_user, cmd=lmbench_log_cmd)
+	print(files)
+	run_benchmark(host=guest, normal_user=guest_user, root_user=guest_root, grubentry=ilp32_test, total_count=5, test_user=guest_user, testcmd=lmbench)
+	files = ssh_cmd_get_log(host=guest, user=guest_user, cmd=lmbench_log_cmd)
+	print(files)
+
+	files = ssh_cmd_get_log(host=guest, user=guest_user, cmd=specint_log_cmd)
+	print(files)
+	run_benchmark(host=guest, normal_user=guest_user, root_user=guest_root, grubentry=ilp32_test, total_count=1, test_user=guest_root, testcmd=specint)
+	files = ssh_cmd_get_log(host=guest, user=guest_user, cmd=specint_log_cmd)
+	print(files)
 
 #compile_kernel("heyunlei", "z00293696", "/home/z00293696/works/source/kernel/hulk", "b43c4a1", ["kernel_disable_arm64_ilp32_config"])
 #no_ilp32="z00293696-upstream-no-aarch32"
