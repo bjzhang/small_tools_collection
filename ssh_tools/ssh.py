@@ -188,7 +188,7 @@ image_path=kernel_path + "/arch/arm64/boot/Image"
 kernel_install="/boot/z00293696-ilp32-test"
 ilp32_test="z00293696-ilp32-test"
 lmbench=["cd /home/z00293696/works/source/testsuite/lmbench/lmbench-3.0-a9; make rerun"]
-specint=["cd /home/z00293696/speccpu2006;. ./shrc; runspec --config=Arm64-single-core-linux64-arm64-lp64-gcc49.cfg --size=ref --noreportable --tune=base --iterations=1 bzip2 mcf hmmer libquantum"]
+specint=["cd /home/z00293696/speccpu2006;. ./shrc; runspec --config=Arm64-single-core-linux64-arm64-lp64-gcc49.cfg --size=ref --noreportable --tune=base --iterations=3 bzip2 mcf hmmer libquantum"]
 config_aarch32_el0_enabled=["kernel_disable_compat_config", "kernel_disable_aarch32_el0_config", "kernel_disable_arm64_ilp32_config", "kernel_disable_arm_smmu_v3_config"]
 config_aarch32_el0_disabled=["kernel_disable_arm64_ilp32_config", "kernel_disable_arm_smmu_v3_config"]
 lmbench_log_cmd=['cd /home/z00293696/works/source/testsuite/lmbench/lmbench-3.0-a9/results/aarch64-linux-gnu; ls']
@@ -202,7 +202,8 @@ def remote_copy_log_file(src, src_user, dst, dst_user, src_dir, dst_dir, files):
 
 #$ git log --oneline hulk_mbi-gen-v9_ilp32 --reverse -19 | cut -d \  -f 1
 #["b43c4a1", "2f2523a", "de08b73", "31b690e", "8947bfe", "4622f2c", "2607ec2", "464c58d", "99e9119", "b5107ca", "f791ec5", "149d0db", "209fd42", "0bb5267", "71e8487", "6f346a0", "5a3a2c9", "adae8a0", "afb510f"]
-for commit in ["f791ec5", "8947bfe", "6f346a0", "b43c4a1", "2f2523a", "de08b73", "31b690e", "4622f2c", "2607ec2", "464c58d", "99e9119", "b5107ca", "149d0db", "209fd42", "0bb5267", "71e8487", "5a3a2c9", "adae8a0", "afb510f"]:
+#"f791ec5" already tested
+for commit in ["8947bfe", "6f346a0", "b43c4a1", "2f2523a", "de08b73", "31b690e", "4622f2c", "2607ec2", "464c58d", "99e9119", "b5107ca", "149d0db", "209fd42", "0bb5267", "71e8487", "5a3a2c9", "adae8a0", "afb510f"]:
 	compile_kernel(host, host_user, kernel_path, commit, config_aarch32_el0_enabled)
 	scp_s2s(host, host_user, guest, guest_root, image_path, kernel_install)
 	files = ssh_cmd_get_log(host=guest, user=guest_user, cmd=lmbench_log_cmd)
