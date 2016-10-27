@@ -1,5 +1,7 @@
 #!/usr/bin/env python
-#http://stackoverflow.com/questions/3462143/get-difference-between-two-lists
+#http://stackoverflow.com/questions/3462143/get-difference-between-two-lists/3462160#3462160
+#In [5]: list(set(temp1) - set(temp2))
+#Out[5]: ['Four', 'Three']
 from __future__ import print_function
 import paramiko
 import time
@@ -79,6 +81,19 @@ def ssh_transport(host, user, cmd, dry_run=False):
 			if len(s) > 0:
 				print(s, end="")
 
+def ssh_reboot(host, normal_user, root_user):
+	print("Rebooting...")
+	ssh_cmd(host, root_user, ["reboot"], False)
+	while True:
+		try:
+			ssh_cmd(host, normal_user, ["echo -n"])
+			print(".", end="")
+			time.sleep(1)
+		except:
+			break
+	print("Waiting for reboot: ", end="")
+	ssh_wait_connection(host, normal_user)
+	print("done")
 
 def scp(host, user, src, dst, silent=True):
 	def progress(so_far, total):
@@ -133,12 +148,7 @@ def run_benchmark(host, normal_user, root_user, grubentry, total_count, test_use
 		print("result")
 		ssh_cmd(host, normal_user, ["grep z00293696 /boot/EFI/grub2/grub.cfg"], False)
 
-		print("Rebooting")
-		ssh_cmd(host, root_user, ["reboot"], False)
-
-		print("Waiting for reboot: ", end="")
-		ssh_wait_connection(host, normal_user)
-		print("done")
+		ssh_reboot(host, normal_user, root_user)
 
 	print("Current machine")
 	ssh_cmd(host, normal_user, ["uname -a"], False)
@@ -149,7 +159,6 @@ def run_benchmark(host, normal_user, root_user, grubentry, total_count, test_use
 		print("count is " + str(count))
 		ssh_transport(host, test_user, testcmd)
 		count = count + 1
-
 
 def compile_kernel(host, user, path, commit, extra_config, dry_run=False):
 	print(host)
@@ -191,8 +200,10 @@ lmbench=["cd /home/z00293696/works/source/testsuite/lmbench/lmbench-3.0-a9; make
 specint=["cd /home/z00293696/speccpu2006;. ./shrc; runspec --config=Arm64-single-core-linux64-arm64-lp64-gcc49.cfg --size=ref --noreportable --tune=base --iterations=3 bzip2 mcf hmmer libquantum"]
 config_aarch32_el0_enabled=["kernel_disable_compat_config", "kernel_disable_aarch32_el0_config", "kernel_disable_arm64_ilp32_config", "kernel_disable_arm_smmu_v3_config"]
 config_aarch32_el0_disabled=["kernel_disable_arm64_ilp32_config", "kernel_disable_arm_smmu_v3_config"]
-lmbench_log_cmd=['cd /home/z00293696/works/source/testsuite/lmbench/lmbench-3.0-a9/results/aarch64-linux-gnu; ls']
-specint_log_cmd=['cd /home/z00293696/speccpu2006/result; ls']
+lmbench_log_dir="/home/z00293696/works/source/testsuite/lmbench/lmbench-3.0-a9/results/aarch64-linux-gnu"
+lmbench_log_cmd=['cd ' + lmbench_log_dir + '; ls']
+speinc_log_dir="/home/z00293696/speccpu2006/result"
+specint_log_cmd=['cd ' + speinc_log_dir + '; ls']
 
 def remote_copy_log_file(src, src_user, dst, dst_user, src_dir, dst_dir, files):
 	run_cmd_block(['mkdir', '-p', dst_dir])
@@ -206,48 +217,44 @@ def remote_copy_log_file(src, src_user, dst, dst_user, src_dir, dst_dir, files):
 for commit in ["8947bfe", "6f346a0", "b43c4a1", "2f2523a", "de08b73", "31b690e", "4622f2c", "2607ec2", "464c58d", "99e9119", "b5107ca", "149d0db", "209fd42", "0bb5267", "71e8487", "5a3a2c9", "adae8a0", "afb510f"]:
 	compile_kernel(host, host_user, kernel_path, commit, config_aarch32_el0_enabled)
 	scp_s2s(host, host_user, guest, guest_root, image_path, kernel_install)
-	files = ssh_cmd_get_log(host=guest, user=guest_user, cmd=lmbench_log_cmd)
-	print(files)
+	olds = ssh_cmd_get_log(host=guest, user=guest_user, cmd=lmbench_log_cmd)
 	run_benchmark(host=guest, normal_user=guest_user, root_user=guest_root, grubentry=ilp32_test, total_count=5, test_user=guest_user, testcmd=lmbench)
-	files = ssh_cmd_get_log(host=guest, user=guest_user, cmd=lmbench_log_cmd)
-	print(files)
+	news = ssh_cmd_get_log(host=guest, user=guest_user, cmd=lmbench_log_cmd)
+	new_logs = list(set(news) - set(olds))
+	print(new_logs)
+	remote_copy_log_file(guest, guest_user, host, host_user, lmbench_log_dir, commit + "_aarch32_on", new_logs)
 
-	files = ssh_cmd_get_log(host=guest, user=guest_user, cmd=specint_log_cmd)
-	print(files)
-	run_benchmark(host=guest, normal_user=guest_user, root_user=guest_root, grubentry=ilp32_test, total_count=1, test_user=guest_root, testcmd=specint)
-	files = ssh_cmd_get_log(host=guest, user=guest_user, cmd=specint_log_cmd)
-	print(files)
+	olds = ssh_cmd_get_log(host=guest, user=guest_user, cmd=specint_log_cmd)
+	run_benchmark(host=guest, normal_user=guest_user, root_user=guest_root, grubentry=ilp32_test, total_count=1, test_user=guest_root, testcmd=specint, log_cmd=specint_log_cmd)
+	news = ssh_cmd_get_log(host=guest, user=guest_user, cmd=specint_log_cmd)
+	new_logs = list(set(news) - set(olds))
+	print(new_logs)
+	remote_copy_log_file(guest, guest_user, host, host_user, specint_log_dir, commit + "_aarch32_on", new_logs)
 
-	compile_kernel(host, host_user, kernel_path, commit, config_aarch32_el0_disabled)
-	scp_s2s(host, host_user, guest, guest_root, image_path, kernel_install)
-	files = ssh_cmd_get_log(host=guest, user=guest_user, cmd=lmbench_log_cmd)
-	print(files)
-	run_benchmark(host=guest, normal_user=guest_user, root_user=guest_root, grubentry=ilp32_test, total_count=5, test_user=guest_user, testcmd=lmbench)
-	files = ssh_cmd_get_log(host=guest, user=guest_user, cmd=lmbench_log_cmd)
-	print(files)
+	#compile_kernel(host, host_user, kernel_path, commit, config_aarch32_el0_disabled)
+	#scp_s2s(host, host_user, guest, guest_root, image_path, kernel_install)
+	#files = run_benchmark(host=guest, normal_user=guest_user, root_user=guest_root, grubentry=ilp32_test, total_count=5, test_user=guest_user, testcmd=lmbench, log_cmd=lmbench_log_cmd)
+	#print(files)
 
-	files = ssh_cmd_get_log(host=guest, user=guest_user, cmd=specint_log_cmd)
-	print(files)
-	run_benchmark(host=guest, normal_user=guest_user, root_user=guest_root, grubentry=ilp32_test, total_count=1, test_user=guest_root, testcmd=specint)
-	files = ssh_cmd_get_log(host=guest, user=guest_user, cmd=specint_log_cmd)
-	print(files)
-
-#compile_kernel("heyunlei", "z00293696", "/home/z00293696/works/source/kernel/hulk", "b43c4a1", ["kernel_disable_arm64_ilp32_config"])
-#no_ilp32="z00293696-upstream-no-aarch32"
-#ilp32_disabled="z00293696-upstream-ilp32-disabled-no-aarch32"
+	#files = run_benchmark(host=guest, normal_user=guest_user, root_user=guest_root, grubentry=ilp32_test, total_count=1, test_user=guest_root, testcmd=specint, log_cmd=specint_log_cmd)
+	#print(files)
 #
-#round_max = 6
-#round_cur = 0
-#
-#while (round_cur < round_max):
-#	print("round: " + str(round_cur))
-#	run_benchmark(host="D03-02", normal_user="z00293696", root_user="root", grubentry=no_ilp32, total_count=5, test_user="z00293696", testcmd=["cd /home/z00293696/works/source/testsuite/lmbench/lmbench-3.0-a9; make rerun"])
-#	run_benchmark(host="D03-02", normal_user="z00293696", root_user="root", grubentry=ilp32_disabled, total_count=5, test_user="z00293696", testcmd=["cd /home/z00293696/works/source/testsuite/lmbench/lmbench-3.0-a9; make rerun"])
-#
-#	run_benchmark(host="D03-02", normal_user="z00293696", root_user="root", grubentry=no_ilp32, total_count=1, test_user="root", testcmd=["cd /home/z00293696/speccpu2006;. ./shrc; runspec --config=Arm64-single-core-linux64-arm64-lp64-gcc49.cfg --size=ref --noreportable --tune=base --iterations=1 perlbench bzip2 gcc mcf gobmk hmmer sjeng libquantum h264ref omnetpp astar xalancbmk"])
-#	#run_benchmark(host="D03-02", normal_user="z00293696", root_user="root", grubentry=no_ilp32, total_count=1, test_user="root", testcmd=["cd /home/z00293696/speccpu2006;. ./shrc; runspec --config=Arm64-single-core-linux64-arm64-lp64-gcc49.cfg --size=ref --noreportable --tune=base --iterations=1 mcf"], reboot=False)
-#	run_benchmark(host="D03-02", normal_user="z00293696", root_user="root", grubentry=ilp32_disabled, total_count=1, test_user="root", testcmd=["cd /home/z00293696/speccpu2006;. ./shrc; runspec --config=Arm64-single-core-linux64-arm64-lp64-gcc49.cfg --size=ref --noreportable --tune=base --iterations=1 perlbench bzip2 gcc mcf gobmk hmmer sjeng libquantum h264ref omnetpp astar xalancbmk"])
-#	#run_benchmark(host="D03-02", normal_user="z00293696", root_user="root", grubentry=ilp32-disabled, total_count=1, test_user="root", testcmd=["cd /home/z00293696/speccpu2006;. ./shrc; runspec --config=Arm64-single-core-linux64-arm64-lp64-gcc49.cfg --size=ref --noreportable --tune=base --iterations=1 mcf hmmer"])
-#
-#	round_cur = round_cur + 1
-#
+##compile_kernel("heyunlei", "z00293696", "/home/z00293696/works/source/kernel/hulk", "b43c4a1", ["kernel_disable_arm64_ilp32_config"])
+##no_ilp32="z00293696-upstream-no-aarch32"
+##ilp32_disabled="z00293696-upstream-ilp32-disabled-no-aarch32"
+##
+##round_max = 6
+##round_cur = 0
+##
+##while (round_cur < round_max):
+##	print("round: " + str(round_cur))
+##	run_benchmark(host="D03-02", normal_user="z00293696", root_user="root", grubentry=no_ilp32, total_count=5, test_user="z00293696", testcmd=["cd /home/z00293696/works/source/testsuite/lmbench/lmbench-3.0-a9; make rerun"])
+##	run_benchmark(host="D03-02", normal_user="z00293696", root_user="root", grubentry=ilp32_disabled, total_count=5, test_user="z00293696", testcmd=["cd /home/z00293696/works/source/testsuite/lmbench/lmbench-3.0-a9; make rerun"])
+##
+##	run_benchmark(host="D03-02", normal_user="z00293696", root_user="root", grubentry=no_ilp32, total_count=1, test_user="root", testcmd=["cd /home/z00293696/speccpu2006;. ./shrc; runspec --config=Arm64-single-core-linux64-arm64-lp64-gcc49.cfg --size=ref --noreportable --tune=base --iterations=1 perlbench bzip2 gcc mcf gobmk hmmer sjeng libquantum h264ref omnetpp astar xalancbmk"])
+##	#run_benchmark(host="D03-02", normal_user="z00293696", root_user="root", grubentry=no_ilp32, total_count=1, test_user="root", testcmd=["cd /home/z00293696/speccpu2006;. ./shrc; runspec --config=Arm64-single-core-linux64-arm64-lp64-gcc49.cfg --size=ref --noreportable --tune=base --iterations=1 mcf"], reboot=False)
+##	run_benchmark(host="D03-02", normal_user="z00293696", root_user="root", grubentry=ilp32_disabled, total_count=1, test_user="root", testcmd=["cd /home/z00293696/speccpu2006;. ./shrc; runspec --config=Arm64-single-core-linux64-arm64-lp64-gcc49.cfg --size=ref --noreportable --tune=base --iterations=1 perlbench bzip2 gcc mcf gobmk hmmer sjeng libquantum h264ref omnetpp astar xalancbmk"])
+##	#run_benchmark(host="D03-02", normal_user="z00293696", root_user="root", grubentry=ilp32-disabled, total_count=1, test_user="root", testcmd=["cd /home/z00293696/speccpu2006;. ./shrc; runspec --config=Arm64-single-core-linux64-arm64-lp64-gcc49.cfg --size=ref --noreportable --tune=base --iterations=1 mcf hmmer"])
+##
+##	round_cur = round_cur + 1
+##
