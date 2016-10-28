@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 
 from __future__ import print_function
 import sys
@@ -62,6 +63,7 @@ def diff(result1, result2):
 	return diff
 
 def specint_diff(t1, t2, names):
+	print("diff: (" + t1 + " - " + t2 + ") / " + t2)
 	s1 = specint_avg(t1, names)
 	s2 = specint_avg(t2, names)
 	print(s1)

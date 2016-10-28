@@ -2,6 +2,11 @@
 #http://stackoverflow.com/questions/3462143/get-difference-between-two-lists/3462160#3462160
 #In [5]: list(set(temp1) - set(temp2))
 #Out[5]: ['Four', 'Three']
+
+#TODO: 
+#1.  seperate the lmbench and specint log.
+#2.  decrease the arguments of function. It is hard to maintain currently.
+
 from __future__ import print_function
 import paramiko
 import time
@@ -220,14 +225,16 @@ image_path=kernel_path + "/arch/arm64/boot/Image"
 kernel_install="/boot/z00293696-ilp32-test"
 ilp32_test="z00293696-ilp32-test"
 lmbench=["cd /home/z00293696/works/source/testsuite/lmbench/lmbench-3.0-a9; make rerun"]
-specint=["cd /home/z00293696/speccpu2006;. ./shrc; runspec --config=Arm64-single-core-linux64-arm64-lp64-gcc49.cfg --size=ref --noreportable --tune=base --iterations=3 bzip2 mcf hmmer libquantum"]
+#specint=["cd /home/z00293696/speccpu2006;. ./shrc; runspec --config=Arm64-single-core-linux64-arm64-lp64-gcc49.cfg --size=ref --noreportable --tune=base --iterations=3 --verbose 1 bzip2 mcf hmmer libquantum"]
+specint=["cd /home/z00293696/speccpu2006;. ./shrc; runspec --config=Arm64-single-core-linux64-arm64-lp64-gcc49.cfg --size=test,train,ref --noreportable --tune=base,peak --iterations=3 --verbose 1 hmmer"]
+#specint=["cd /home/z00293696/speccpu2006;. ./shrc; runspec --config=Arm64-single-core-linux64-arm64-lp64-gcc49.cfg --dry-run --size=test,train,ref --noreportable --tune=base,peak --iterations=3 --verbose 1 bzip2 mcf hmmer libquantum"]
 config_aarch32_el0_enabled=["kernel_disable_compat_config", "kernel_disable_aarch32_el0_config", "kernel_disable_arm64_ilp32_config", "kernel_disable_arm_smmu_v3_config"]
 config_aarch32_el0_disabled=["kernel_disable_arm64_ilp32_config", "kernel_disable_arm_smmu_v3_config"]
 lmbench_log_dir="/home/z00293696/works/source/testsuite/lmbench/lmbench-3.0-a9/results/aarch64-linux-gnu"
 lmbench_log_cmd=['cd ' + lmbench_log_dir + '; ls']
 specint_log_dir="/home/z00293696/speccpu2006/result"
 specint_log_cmd=['cd ' + specint_log_dir + '; ls']
-log_base = "/home/z00293696/works/source/testsuite/testresult/ilp32/20161027_lmbench_specint_LP64"
+log_base = "/home/z00293696/works/source/testsuite/testresult/ilp32/20161028_specint_LP64"
 
 #$ git log --oneline hulk_mbi-gen-v9_ilp32 --reverse -19 | cut -d \  -f 1
 #["b43c4a1", "2f2523a", "de08b73", "31b690e", "8947bfe", "4622f2c", "2607ec2", "464c58d", "99e9119", "b5107ca", "f791ec5", "149d0db", "209fd42", "0bb5267", "71e8487", "6f346a0", "5a3a2c9", "adae8a0", "afb510f"]
@@ -236,14 +243,14 @@ log_base = "/home/z00293696/works/source/testsuite/testresult/ilp32/20161027_lmb
 for commit in ["8947bfe", "afb510f", "a5ba168"]:
 	compile_kernel(kernel_server, kernel_server_user, kernel_path, commit, config_aarch32_el0_enabled, silent=True)
 	scp_s2s(kernel_server, kernel_server_user, guest, guest_root, image_path, kernel_install)
-	run_benchmark_and_get_log(host, host_user, guest, guest_user, guest_root, ilp32_test, 1, specint, specint_log_cmd, specint_log_dir, commit + "_aarch32_on", silent=True)
+	run_benchmark_and_get_log(host, host_user, guest, guest_user, guest_root, ilp32_test, 1, specint, specint_log_cmd, specint_log_dir, log_base + "/" + commit + "_aarch32_on")
 
-for commit in ["8947bfe", "afb510f", "a5ba168"]:
-	compile_kernel(kernel_server, kernel_server_user, kernel_path, commit, config_aarch32_el0_enabled, silent=True)
-	scp_s2s(kernel_server, kernel_server_user, guest, guest_root, image_path, kernel_install)
-	run_benchmark_and_get_log(host, host_user, guest, guest_user, guest_root, ilp32_test, 5, lmbench, lmbench_log_cmd, lmbench_log_dir, commit + "_aarch32_on")
-	#run_benchmark_and_get_log(host, host_user, guest, guest_user, guest_root, ilp32_test, 1, specint, specint_log_cmd, specint_log_dir, commit + "_aarch32_on")
+#for commit in ["8947bfe", "afb510f", "a5ba168"]:
+#	compile_kernel(kernel_server, kernel_server_user, kernel_path, commit, config_aarch32_el0_enabled, silent=True)
+#	scp_s2s(kernel_server, kernel_server_user, guest, guest_root, image_path, kernel_install)
+#	run_benchmark_and_get_log(host, host_user, guest, guest_user, guest_root, ilp32_test, 5, lmbench, lmbench_log_cmd, lmbench_log_dir, log_base + "/" + commit + "_aarch32_on")
+	#run_benchmark_and_get_log(host, host_user, guest, guest_user, guest_root, ilp32_test, 1, specint, specint_log_cmd, specint_log_dir, log_base + "/" + commit + "_aarch32_on")
 	#compile_kernel(kernel_server, kernel_server_user, kernel_path, commit, config_aarch32_el0_disabled)
 	#scp_s2s(kernel_server, kernel_server_user, guest, guest_root, image_path, kernel_install)
-	#run_benchmark_and_get_log(host, host_user, guest, guest_user, guest_root, ilp32_test, 5, lmbench, lmbench_log_cmd, lmbench_log_dir, commit + "_aarch32_on")
-	#run_benchmark_and_get_log(host, host_user, guest, guest_user, guest_root, ilp32_test, 1, specint, specint_log_cmd, specint_log_dir, commit + "_aarch32_on")
+	#run_benchmark_and_get_log(host, host_user, guest, guest_user, guest_root, ilp32_test, 5, lmbench, lmbench_log_cmd, lmbench_log_dir, log_base + "/" + commit + "_aarch32_off")
+	#run_benchmark_and_get_log(host, host_user, guest, guest_user, guest_root, ilp32_test, 1, specint, specint_log_cmd, specint_log_dir, log_base + "/" + commit + "_aarch32_off")
