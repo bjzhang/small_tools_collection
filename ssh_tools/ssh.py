@@ -15,6 +15,7 @@ import select
 import datetime
 import progressbar
 import os
+import sys	#for exit
 import subprocess
 
 def run_cmd_block(cmd):
@@ -63,15 +64,20 @@ def ssh_wait_connection(host, normal_user, dry_run=False):
 			print(".", end="")
 			time.sleep(10)
 
-def ssh_transport(host, user, cmd, dry_run=False, silent=False):
+def ssh_transport(host, user, cmd, dry_run=False, silent=False, detach=False):
 	ssh = paramiko.SSHClient()
 	ssh.load_system_host_keys()
 	ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
 	ssh.connect(host, username=user, timeout=120)
 	transport = ssh.get_transport()
 	for i, c in enumerate(cmd):
-		print(c)
 		channel = transport.open_session()
+		if detach:
+			c = "screen -L " + c
+
+		print(c)
+		#channel.get_pty(term="vt100", width=80, height=24)
+		channel.get_pty()
 		channel.exec_command(c)
 		while True:
 			r, w, x = select.select([channel], [], [], 0.0)
@@ -131,11 +137,12 @@ def scp(host, user, src, dst, silent=True):
 	pbar.finish()
 
 def scp_s2s(src, src_user, dst, dst_user, src_path, dst_path):
-	ssh_cmd(dst, dst_user, ['mkdir -p ' + os.path.dirname(dst_path)], slient=True)
 	cmd = ['scp', '-p', src_user + "@" + src + ":" + src_path, dst_user + "@" + dst + ":" + dst_path]
+	print(cmd)
+	ssh_cmd(dst, dst_user, ['mkdir -p ' + os.path.dirname(dst_path)], slient=True)
 	run_cmd_block(cmd)
 
-def run_benchmark(host, normal_user, root_user, grubentry, total_count, test_user, testcmd, reboot=True, silent=False):
+def run_benchmark(host, normal_user, root_user, grubentry, total_count, test_user, testcmd, reboot=True, silent=False, detach=True):
 	print(host)
 	print(normal_user)
 	print(grubentry)
@@ -163,7 +170,7 @@ def run_benchmark(host, normal_user, root_user, grubentry, total_count, test_use
 	count = 0
 	while(count < total_count):
 		print("count is " + str(count))
-		ssh_transport(host, test_user, testcmd, silent=silent)
+		ssh_transport(host, test_user, testcmd, silent=silent, detach=detach)
 		count = count + 1
 
 	dt = datetime.datetime.now()
@@ -205,52 +212,63 @@ def remote_copy_log_file(src, src_user, dst, dst_user, src_dir, dst_dir, files, 
 			print("scp -p " + src_user + "@" + src + ":" + src_dir + "/" + f + " " + dst_user + "@" + dst + ":" + dst_dir)
 		scp_s2s(src, src_user, dst, dst_user, p, dst_dir + "/" + f.rstrip('\n'))
 
-def run_benchmark_and_get_log(host, host_user, guest, guest_user, guest_root, this_grubentry, count, test_cmd, log_cmd, log_dir, host_log_dir, silent=False):
+def run_benchmark_and_get_log(host, host_user, guest, guest_user, guest_root, this_grubentry, count, test_cmd, log_cmd, log_dir, host_log_dir, silent=False, detach=True):
 	olds = ssh_cmd_get_log(host=guest, user=guest_user, cmd=log_cmd)
-	run_benchmark(host=guest, normal_user=guest_user, root_user=guest_root, grubentry=this_grubentry, total_count=count, test_user=guest_root, testcmd=test_cmd, silent=silent)
+	run_benchmark(host=guest, normal_user=guest_user, root_user=guest_root, grubentry=this_grubentry, total_count=count, test_user=guest_root, testcmd=test_cmd, silent=silent, detach=detach)
 	news = ssh_cmd_get_log(host=guest, user=guest_user, cmd=log_cmd)
 	new_logs = list(set(news) - set(olds))
 	print(new_logs)
 	remote_copy_log_file(guest, guest_user, host, host_user, log_dir, host_log_dir, new_logs)
 
+def test():
+#	ssh_transport("d03-02", "z00293696", ["ls"])
+#	ssh_transport("d03-02", "z00293696", ["sleep 1"])
+	ssh_transport("d03-02", "z00293696", ["ls"], detach=True)
+	ssh_transport("d03-02", "z00293696", ["sleep 10"], detach=True)
+	sys.exit()
+
+lmbench=["cd /home/z00293696/works/source/testsuite/lmbench/lmbench-3.0-a9; make rerun"]
+specint=["cd /home/z00293696/speccpu2006;. ./shrc; runspec --config=Arm64-single-core-linux64-arm64-lp64-gcc49.cfg --size=test,train,ref --noreportable --tune=base,peak --iterations=3 --verbose 0 bzip2 mcf hmmer libquantum"]
+lmbench_log_dir="/home/z00293696/works/source/testsuite/lmbench/lmbench-3.0-a9/results/aarch64-linux-gnu"
+lmbench_log_cmd=['cd ' + lmbench_log_dir + '; ls']
+specint_log_dir="/home/z00293696/speccpu2006/result"
+specint_log_cmd=['cd ' + specint_log_dir + '; ls']
+
 kernel_server="heyunlei"
 kernel_server_user="z00293696"
-host="bj23"
+host="bj23_new"
 host_user="z00293696"
 guest="D03-02"
 guest_user="z00293696"
 guest_root="root"
 kernel_path="/home/z00293696/works/source/kernel/hulk"
-image_path=kernel_path + "/arch/arm64/boot/Image"
 kernel_install="/boot/z00293696-ilp32-test"
-ilp32_test="z00293696-ilp32-test"
-lmbench=["cd /home/z00293696/works/source/testsuite/lmbench/lmbench-3.0-a9; make rerun"]
-#specint=["cd /home/z00293696/speccpu2006;. ./shrc; runspec --config=Arm64-single-core-linux64-arm64-lp64-gcc49.cfg --size=ref --noreportable --tune=base --iterations=3 --verbose 1 bzip2 mcf hmmer libquantum"]
-specint=["cd /home/z00293696/speccpu2006;. ./shrc; runspec --config=Arm64-single-core-linux64-arm64-lp64-gcc49.cfg --size=test,train,ref --noreportable --tune=base,peak --iterations=3 --verbose 1 hmmer"]
-#specint=["cd /home/z00293696/speccpu2006;. ./shrc; runspec --config=Arm64-single-core-linux64-arm64-lp64-gcc49.cfg --dry-run --size=test,train,ref --noreportable --tune=base,peak --iterations=3 --verbose 1 bzip2 mcf hmmer libquantum"]
-config_aarch32_el0_enabled=["kernel_disable_compat_config", "kernel_disable_aarch32_el0_config", "kernel_disable_arm64_ilp32_config", "kernel_disable_arm_smmu_v3_config"]
-config_aarch32_el0_disabled=["kernel_disable_arm64_ilp32_config", "kernel_disable_arm_smmu_v3_config"]
-lmbench_log_dir="/home/z00293696/works/source/testsuite/lmbench/lmbench-3.0-a9/results/aarch64-linux-gnu"
-lmbench_log_cmd=['cd ' + lmbench_log_dir + '; ls']
-specint_log_dir="/home/z00293696/speccpu2006/result"
-specint_log_cmd=['cd ' + specint_log_dir + '; ls']
-log_base = "/home/z00293696/works/source/testsuite/testresult/ilp32/20161028_specint_LP64"
+grub="z00293696-ilp32-test"
+config=["kernel_el0_config", "kernel_ilp32_config", "kernel_disable_arm_smmu_v3_config"]
+config_name="aarch32_on_ilp32_on"
 
-#$ git log --oneline hulk_mbi-gen-v9_ilp32 --reverse -19 | cut -d \  -f 1
-#["b43c4a1", "2f2523a", "de08b73", "31b690e", "8947bfe", "4622f2c", "2607ec2", "464c58d", "99e9119", "b5107ca", "f791ec5", "149d0db", "209fd42", "0bb5267", "71e8487", "6f346a0", "5a3a2c9", "adae8a0", "afb510f"]
-#"f791ec5" already tested
-#for commit in ["8947bfe", "6f346a0", "b43c4a1", "2f2523a", "de08b73", "31b690e", "4622f2c", "2607ec2", "464c58d", "99e9119", "b5107ca", "149d0db", "209fd42", "0bb5267", "71e8487", "5a3a2c9", "adae8a0", "afb510f"]:
-for commit in ["8947bfe", "afb510f", "a5ba168"]:
-	compile_kernel(kernel_server, kernel_server_user, kernel_path, commit, config_aarch32_el0_enabled, silent=True)
+testsuite=specint
+#List the directory, run_benchmark_and_get_log will compare the filename after test and copy the new file.
+testsuite_log_cmd=specint_log_cmd
+testsuite_log_dir=specint_log_dir
+
+log_base = "/home/z00293696/works/source/testsuite/testresult/ilp32/20161031_specint_LP64"
+#commits=["afb510f", "a5ba168", "b5107ca"]
+commits=["b5107ca"]
+total_test_count=1
+
+#test()
+print("Start")
+#skip h264ref because it always fail
+#TODO copy config file
+for commit in commits:
+	log_path = log_base + "/" + commit + "_" + config_name
+	image_path=kernel_path + "/arch/arm64/boot/Image"
+	config_path=kernel_path + "/.config"
+
+	compile_kernel(kernel_server, kernel_server_user, kernel_path, commit, config, silent=True)
 	scp_s2s(kernel_server, kernel_server_user, guest, guest_root, image_path, kernel_install)
-	run_benchmark_and_get_log(host, host_user, guest, guest_user, guest_root, ilp32_test, 1, specint, specint_log_cmd, specint_log_dir, log_base + "/" + commit + "_aarch32_on")
+	scp_s2s(kernel_server, kernel_server_user, host, host_user, image_path, log_path + "/" + commit + "_" + config_name + "_Image")
+	scp_s2s(kernel_server, kernel_server_user, host, host_user, config_path, log_path + "/" + commit + "_" + config_name + "_config")
+	run_benchmark_and_get_log(host, host_user, guest, guest_user, guest_root, grub, total_test_count, testsuite, testsuite_log_cmd, testsuite_log_dir, log_path, detach=True)
 
-#for commit in ["8947bfe", "afb510f", "a5ba168"]:
-#	compile_kernel(kernel_server, kernel_server_user, kernel_path, commit, config_aarch32_el0_enabled, silent=True)
-#	scp_s2s(kernel_server, kernel_server_user, guest, guest_root, image_path, kernel_install)
-#	run_benchmark_and_get_log(host, host_user, guest, guest_user, guest_root, ilp32_test, 5, lmbench, lmbench_log_cmd, lmbench_log_dir, log_base + "/" + commit + "_aarch32_on")
-	#run_benchmark_and_get_log(host, host_user, guest, guest_user, guest_root, ilp32_test, 1, specint, specint_log_cmd, specint_log_dir, log_base + "/" + commit + "_aarch32_on")
-	#compile_kernel(kernel_server, kernel_server_user, kernel_path, commit, config_aarch32_el0_disabled)
-	#scp_s2s(kernel_server, kernel_server_user, guest, guest_root, image_path, kernel_install)
-	#run_benchmark_and_get_log(host, host_user, guest, guest_user, guest_root, ilp32_test, 5, lmbench, lmbench_log_cmd, lmbench_log_dir, log_base + "/" + commit + "_aarch32_off")
-	#run_benchmark_and_get_log(host, host_user, guest, guest_user, guest_root, ilp32_test, 1, specint, specint_log_cmd, specint_log_dir, log_base + "/" + commit + "_aarch32_off")
