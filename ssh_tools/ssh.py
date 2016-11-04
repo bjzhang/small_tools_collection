@@ -17,6 +17,8 @@ import progressbar
 import os
 import sys	#for exit
 import subprocess
+import json	#for json.load
+from pprint import pprint	#for pprint.pprint
 
 def run_cmd_block(cmd):
 	subprocess.check_call(args = cmd)
@@ -213,16 +215,22 @@ def run_benchmark_and_get_log(host, host_user, guest, guest_user, guest_root, th
 		print(new_logs)
 		remote_copy_log_file(guest, guest_user, host, host_user, log_dir, host_log_dir, new_logs)
 
-def run_test(server, kernel, test):
+def run_test(config):
+	server = config["server"]
+	kernel = config["kernel"]
+	test = config["test"]
+	pprint(server)
+	pprint(kernel)
+	pprint(test)
 	for commit in kernel["commits"]:
-		log_path = server["log_base"] + "/" + commit + "_" + server["log_subfix"]
+		log_path = server["log_base"] + "/" + commit["commit"] + "_" + commit["name"]
 
 		image_path = kernel["path"] + "/arch/arm64/boot/Image"
 		config_path = kernel["path"] + "/.config"
-		compile_kernel(kernel["host"], kernel["user"], kernel["path"], commit, kernel["config_fragment"], silent=True)
+		compile_kernel(kernel["host"], kernel["user"], kernel["path"], commit["commit"], kernel["config_fragment"], silent=True)
 		scp_s2s(kernel["host"], kernel["user"], test["host"], test["root"], image_path, test["kernel_install"])
-		scp_s2s(kernel["host"], kernel["user"], server["host"], server["user"], image_path, log_path + "/" + commit + "_" + server["log_subfix"] + "_Image")
-		scp_s2s(kernel["host"], kernel["user"], server["host"], server["user"], config_path, log_path + "/" + commit + "_" + server["log_subfix"] + "_config")
+		scp_s2s(kernel["host"], kernel["user"], server["host"], server["user"], image_path, log_path + "/" + commit["commit"] + "_" + commit["name"] + "_Image")
+		scp_s2s(kernel["host"], kernel["user"], server["host"], server["user"], config_path, log_path + "/" + commit["commit"] + "_" + commit["name"] + "_config")
 
 		run_benchmark_and_get_log(server["host"], server["user"], test["host"], test["user"], test["root"], test["grub"], test["total_test_count"], test["testsuite"], test["log_cmd"], test["log_dir"], log_path)
 
@@ -242,48 +250,15 @@ def test():
 	run_benchmark_and_get_log(host, host_user, guest, guest_user, guest_root, "", 1, testsuite, "", "", "", reboot=False)
 	sys.exit()
 
-lmbench=["cd /home/z00293696/works/source/testsuite/lmbench/lmbench-3.0-a9; screen -L make rerun"]
-specint=["cd /home/z00293696/speccpu2006;. ./shrc; screen -L runspec --config=Arm64-single-core-linux64-arm64-lp64-gcc49.cfg --size=test,train,ref --noreportable --tune=base,peak --iterations=3 --verbose 0 bzip2 mcf hmmer libquantum"]
-lmbench_log_dir="/home/z00293696/works/source/testsuite/lmbench/lmbench-3.0-a9/results/aarch64-linux-gnu"
-lmbench_log_cmd=['cd ' + lmbench_log_dir + '; ls']
-specint_log_dir="/home/z00293696/speccpu2006/result"
-specint_log_cmd=['cd ' + specint_log_dir + '; ls']
-
-kernel_server="heyunlei"
-kernel_server_user="z00293696"
-host="bj23_new"
-host_user="z00293696"
-guest="D03-02"
-guest_user="z00293696"
-guest_root="root"
-kernel_path="/home/z00293696/works/source/kernel/hulk"
-kernel_install="/boot/z00293696-ilp32-test"
-grub="z00293696-ilp32-test"
-config=["kernel_el0_config", "kernel_ilp32_config", "kernel_disable_arm_smmu_v3_config"]
-config_name="aarch32_on_ilp32_on"
-
-testsuite=specint
-#List the directory, run_benchmark_and_get_log will compare the filename after test and copy the new file.
-testsuite_log_cmd=specint_log_cmd
-testsuite_log_dir=specint_log_dir
-
-#test()
 print("START")
-log_base = "/home/z00293696/works/source/testsuite/testresult/ilp32/20161103_specint_LP64"
-#commits=["afb510f", "a5ba168", "b5107ca"]
-commits=["afb510f", "a5ba168"]
-config = ["kernel_disable_compat_config", "kernel_disable_aarch32_el0_config", "kernel_disable_arm64_ilp32_config", "kernel_disable_arm_smmu_v3_config"]
-kernel = {"host": kernel_server, "user": kernel_server_user, "path": kernel_path, "commits": commits, "config_fragment": config}
-server = {"host": host, "user": host_user, "log_base": log_base, "log_subfix": config_name}
-test =   {"host": guest, "user": guest_user, "root": guest_root, "grub": grub, "kernel_install": kernel_install, "total_test_count": 1, "testsuite": testsuite, "log_cmd": testsuite_log_cmd, "log_dir": testsuite_log_dir}
+#test()
+with open(sys.argv[1], 'r') as fp:
+	config = json.load(fp)
 
-#skip h264ref because it always fail
-run_test(server, kernel, test)
+run_test(config)
 
-log_base = "/home/z00293696/works/source/testsuite/testresult/ilp32/20161103_lmbench_LP64"
-kernel = {"host": kernel_server, "user": kernel_server_user, "path": kernel_path, "commits": commits, "config_fragment": config}
-server = {"host": host, "user": host_user, "log_base": log_base, "log_subfix": config_name}
-test =   {"host": guest, "user": guest_user, "root": guest_root, "grub": grub, "kernel_install": kernel_install, "total_test_count": 5, "testsuite": lmbench, "log_cmd": lmbench_log_cmd, "log_dir": lmbench_log_dir}
-run_test(server, kernel, test)
+with open('config.json', 'w') as fp:
+	json.dump(config, fp)
+
 print("END")
 
