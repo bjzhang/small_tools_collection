@@ -34,20 +34,23 @@ def specint_avg(path, names):
 
 		results.append(result)
 
-	num = len(results)
-	print("total " + str(num) + " tests")
-
 	sums = {}
+	nums = {}
 	for result in results:
 		for n, v in result.items():
 			if n in sums:
 				sums[n] = sums[n] + float(v)
+				nums[n] = nums[n] + 1
 			else:
 				sums[n] = float(v)
+				nums[n] = 1
 
+	#We got the sum and num of each test. Calculate the average.
+#	print(sums)
+#	print(nums)
 	avgs = {}
 	for n, v in sums.items():
-		avgs[n] = v / num
+		avgs[n] = v / nums[n]
 
 	return avgs
 
@@ -64,6 +67,7 @@ def diff(result1, result2):
 
 def specint_diff(t1, t2, names):
 	print("diff: (" + t1 + " - " + t2 + ") / " + t2)
+	print("Original numbers:")
 	s1 = specint_avg(t1, names)
 	s2 = specint_avg(t2, names)
 	print(s1)
@@ -78,6 +82,9 @@ def specint_diff(t1, t2, names):
 		if len(key) > max_len_of_key:
 			max_len_of_key = len(key)
 
+	print("")
+	print("Diff:")
+	print(t1)
 	for key in keys:
 		print("%*s: %s" % (max_len_of_key + 2, key, diff_result[key]))
 
