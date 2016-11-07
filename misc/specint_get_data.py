@@ -4,35 +4,35 @@ from __future__ import print_function
 import sys
 import re
 import glob
+import getopt
 
-
-def specint_avg(path, names):
-#	path = /home/z00293696/works/source/testsuite/testresult/ilp32/20161022_1024_specint_LP64/ILP32_disabled
+def specint_avg(paths, names):
+#	paths = ["/home/z00293696/works/source/testsuite/testresult/ilp32/20161022_1024_specint_LP64/ILP32_disabled"]
 	globs = "/CINT2006.*.ref.txt"
 
-	files = glob.glob(path + globs)
-
 	results=[]
-	for fn in files:
-		f = open(fn)
-		lines = f.readlines()
-		specint_result=False
-		result={}
-		for line in lines:
-			if re.match("======*", line):
-				specint_result=True
-				continue
+	for path in paths:
+		files = glob.glob(path + globs)
+		for fn in files:
+			f = open(fn)
+			lines = f.readlines()
+			specint_result=False
+			result={}
+			for line in lines:
+				if re.match("======*", line):
+					specint_result=True
+					continue
 
-			if specint_result:
-				#400.perlbench    9770        770      12.7  *
-				if names:
-					for name in names:
-						if re.match(r'^' + name, line):
-							if re.match(r'^[0-9][0-9][0-9].*\*', line):
-								m = re.match(r'([0-9][0-9][0-9]\.[a-z0-9]+) *[0-9]+ *[0-9]+ *([0-9]+\.[0-9]+)', line)
-								result[m.group(1)] = m.group(2)
+				if specint_result:
+					#400.perlbench    9770        770      12.7  *
+					if names:
+						for name in names:
+							if re.match(r'^' + name, line):
+								if re.match(r'^[0-9][0-9][0-9].*\*', line):
+									m = re.match(r'([0-9][0-9][0-9]\.[a-z0-9]+) *[0-9]+ *[0-9]+ *([0-9]+\.[0-9]+)', line)
+									result[m.group(1)] = m.group(2)
 
-		results.append(result)
+			results.append(result)
 
 	sums = {}
 	nums = {}
@@ -66,7 +66,10 @@ def diff(result1, result2):
 	return diff
 
 def specint_diff(t1, t2, names):
-	print("diff: (" + t1 + " - " + t2 + ") / " + t2)
+	if not t1 or not t2:
+		print("testresult or testbase is empty, exit")
+		sys.exit(2)
+
 	print("Original numbers:")
 	s1 = specint_avg(t1, names)
 	s2 = specint_avg(t2, names)
@@ -88,8 +91,40 @@ def specint_diff(t1, t2, names):
 	for key in keys:
 		print("%*s: %s" % (max_len_of_key + 2, key, diff_result[key]))
 
-#if len(sys.argv) >= 4:
-#	names = sys.argv[3].split(',')
-full_name = ["400.perlbench",  "401.bzip2",  "403.gcc",  "429.mcf",  "445.gobmk",  "456.hmmer",  "458.sjeng",  "462.libquantum",  "464.h264ref",  "471.omnetpp",  "473.astar",  "483.xalancbmk"]
-specint_diff(sys.argv[1], sys.argv[2], ["401.bzip2",  "429.mcf",  "456.hmmer",  "462.libquantum"])
+def usage(argv):
+	print("Usage:")
+	print(argv[0] + ": --testresult /path/to/testresult --testbase /path/to/testbase")
+	print("output the average and the diff of (avg(testresult) - arg(testbase))/avg(testbase)")
+	print("--testresult: the path of test result. support multi paths")
+	print("--testbase: the path of test base. support multi paths")
+
+def main(argv):
+	try:
+		opts, args = getopt.getopt(argv, "h", ["testresult=", "testbase="])
+	except getopt.GetoptError as e:
+		print("Argument error " + e.opt + ": " + e.msg)
+		usage(argv)
+		sys.exit(2)
+
+	testresult = []
+	testbase = []
+	for opt, arg in opts:
+		if opt == "-h":
+			usage(argv)
+			sys.exit(2)
+		elif opt == "--testresult":
+			testresult.append(arg)
+		elif opt == "--testbase":
+			testbase.append(arg)
+
+	print("The test result:")
+	print(testresult)
+	print("The test base:")
+	print(testbase)
+	full_name = ["400.perlbench",  "401.bzip2",  "403.gcc",  "429.mcf",  "445.gobmk",  "456.hmmer",  "458.sjeng",  "462.libquantum",  "464.h264ref",  "471.omnetpp",  "473.astar",  "483.xalancbmk"]
+	specint_diff(testresult, testbase, ["401.bzip2",  "429.mcf",  "456.hmmer",  "462.libquantum"])
+
+
+if __name__ == "__main__":
+	main(sys.argv[1:])
 
