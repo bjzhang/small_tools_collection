@@ -60,13 +60,20 @@ def ssh_cmd_paramiko(host, user, cmd, silent=True):
 				print(s, end="")
 #		print("stderr: " + str(stderr.readlines()))
 
-def ssh_cmd(host, user, cmd, silent=True, is_true_shell=False):
+def ssh_cmd(host, user, cmd, silent=True, is_true_shell=False, allow_fail=False):
 	for i, c in enumerate(cmd):
 		current_cmd = ['ssh ' + user + '@' + host + ' \'' + c + '\'']
 		if not silent:
 			print(current_cmd)
 
-		run_cmd_block(current_cmd, is_true_shell)
+		try:
+			run_cmd_block(current_cmd, is_true_shell)
+		except subprocess.CalledProcessError:
+			#Subprocess think reboot is failure. It is because of disconnecting of ssh.
+			if allow_fail:
+				pass
+			else:
+				raise
 
 def ssh_cmd_get_log_paramiko(host, user, cmd):
 #	print("Testing on " + host + " with user: " + user + " cmd: <" + cmd + ">")
@@ -138,11 +145,7 @@ def ssh_transport(host, user, cmd, dry_run=False, silent=False):
 
 def ssh_reboot(host, normal_user, root_user):
 	print("Rebooting...")
-	try:
-		ssh_cmd(host, root_user, ["reboot"], False, is_true_shell=True)
-	except subprocess.CalledProcessError:
-		#Subprocess think reboot is failure. It is because of disconnecting of ssh.
-		pass
+	ssh_cmd(host, root_user, ["reboot"], False, is_true_shell=True, allow_fail=True)
 
 	while True:
 		try:
@@ -220,7 +223,9 @@ def run_benchmark(host, normal_user, root_user, grubentry, total_count, test_use
 
 	print("Current machine")
 	ssh_cmd(host, normal_user, ["uname -a"], False, is_true_shell=True)
-	ssh_cmd(host, normal_user, ["zgrep ILP32 /proc/config.gz"], False, is_true_shell=True)
+	ssh_cmd(host, normal_user, ["zgrep CONFIG_COMPAT /proc/config.gz"], False, is_true_shell=True, allow_fail=True)
+	ssh_cmd(host, normal_user, ["zgrep CONFIG_AARCH32_EL0 /proc/config.gz"], False, is_true_shell=True, allow_fail=True)
+	ssh_cmd(host, normal_user, ["zgrep CONFIG_ARM64_ILP32 /proc/config.gz"], False, is_true_shell=True, allow_fail=True)
 
 	count = 0
 	while(count < total_count):
