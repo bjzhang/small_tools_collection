@@ -29,21 +29,30 @@ def function_name():
 	#ref <http://stackoverflow.com/questions/251464/how-to-get-a-function-name-as-a-string-in-python>
 	return traceback.extract_stack(None, 2)[0][2]
 
-def run_cmd_block(cmd):
-	subprocess.check_call(args = cmd)
+def run_cmd_block(cmd, is_true_shell=False):
+	subprocess.check_call(args = cmd, shell=is_true_shell)
 
-def ssh_cmd(host, user, cmd, slient=True):
-#	print("Testing on " + host + " with user: " + user + " cmd: <" + cmd + ">")
+def run_cmd_block_output(cmd, is_true_shell=False):
+	return subprocess.check_output(args = cmd, stderr=subprocess.STDOUT, shell=is_true_shell)
+
+def ssh_cmd_paramiko(host, user, cmd, silent=True):
+#	print("Connect on " + host + " with user: " + user + " cmd: <" + cmd + ">")
 #	logging.getLogger("paramiko").setLevel(logging.WARNING) ssh = paramiko.SSHClient()
+	if isinstance(host, unicode):
+		host = host.encode("utf-8")
+
+	if isinstance(user, unicode):
+		user = user.encode("utf-8")
+
 	ssh = paramiko.SSHClient()
 	ssh.load_system_host_keys()
 	ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
 	ssh.connect(host, username=user, timeout=120)
 	for i, c in enumerate(cmd):
-		if not slient:
+		if not silent:
 			print(c)
 		stdin,stdout,stderr = ssh.exec_command(c)
-		if not slient:
+		if not silent:
 			print("stdout: " + str(stdout.readlines()))
 
 		for s in stderr.readlines():
@@ -51,7 +60,15 @@ def ssh_cmd(host, user, cmd, slient=True):
 				print(s, end="")
 #		print("stderr: " + str(stderr.readlines()))
 
-def ssh_cmd_get_log(host, user, cmd):
+def ssh_cmd(host, user, cmd, silent=True, is_true_shell=False):
+	for i, c in enumerate(cmd):
+		current_cmd = ['ssh ' + user + '@' + host + ' \"' + c + '\"']
+		if not silent:
+			print(current_cmd)
+
+		run_cmd_block(current_cmd, is_true_shell)
+
+def ssh_cmd_get_log_paramiko(host, user, cmd):
 #	print("Testing on " + host + " with user: " + user + " cmd: <" + cmd + ">")
 #	logging.getLogger("paramiko").setLevel(logging.WARNING) ssh = paramiko.SSHClient()
 	ssh = paramiko.SSHClient()
@@ -66,16 +83,32 @@ def ssh_cmd_get_log(host, user, cmd):
 
 	return result
 
-def ssh_wait_connection(host, normal_user, dry_run=False):
+#Return list of file through the given cmd on user@host
+def ssh_cmd_get_log(host, user, cmd):
+	if isinstance(cmd, unicode):
+		cmd = cmd.encode("utf-8")
+
+	result = []
+	for i, c in enumerate(cmd):
+		current_cmd = ['ssh ' + user + '@' + host + ' \"' + c + '\"']
+		r = run_cmd_block_output(current_cmd, is_true_shell=True)
+		result = result + r.splitlines()
+
+	return result
+
+def ssh_wait_connection(host, normal_user, dry_run=False, debug=False):
+	if debug:
+		print("host: " + host + "; user: " + normal_user)
 	while True:
 		try:
-			ssh_cmd(host, normal_user, ["echo -n"])
+			ssh_cmd(host, normal_user, ["echo -n"], is_true_shell=True)
 			break
 		except:
-			print(".", end="")
+			#print(".", end="")
+			print(".")
 			time.sleep(10)
 
-def ssh_transport(host, user, cmd, dry_run=False, silent=False):
+def ssh_transport_paramiko(host, user, cmd, dry_run=False, silent=False):
 	ssh = paramiko.SSHClient()
 	ssh.load_system_host_keys()
 	ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
@@ -100,17 +133,20 @@ def ssh_transport(host, user, cmd, dry_run=False, silent=False):
 			if len(s) > 0:
 				print(s, end="")
 
+def ssh_transport(host, user, cmd, dry_run=False, silent=False):
+	ssh_cmd(host, user, cmd, is_true_shell=True)
+
 def ssh_reboot(host, normal_user, root_user):
 	print("Rebooting...")
 	ssh_cmd(host, root_user, ["reboot"], False)
 	while True:
 		try:
-			ssh_cmd(host, normal_user, ["echo -n"])
+			ssh_cmd(host, normal_user, ["echo -n"], is_true_shell=True)
 			print(".", end="")
-			time.sleep(1)
+			time.sleep(10)
 		except:
 			break
-	print("Waiting for reboot: ", end="")
+	print("Waiting for reboot: ")
 	ssh_wait_connection(host, normal_user)
 	print("done")
 
@@ -144,13 +180,15 @@ def scp(host, user, src, dst, silent=True):
 	pbar.finish()
 
 def scp_s2s(src, src_user, dst, dst_user, src_path, dst_path, dryrun=False):
-
 	cmd = ['scp', '-p', src_user + "@" + src + ":" + src_path, dst_user + "@" + dst + ":" + dst_path]
 	print(cmd)
 	if dryrun:
 		return
 
-	ssh_cmd(dst, dst_user, ['mkdir -p ' + os.path.dirname(dst_path)], slient=True)
+	if False:
+		print("create dir if needed " + os.path.dirname(dst_path))
+
+	ssh_cmd(dst, dst_user, ['mkdir -p ' + os.path.dirname(dst_path)], silent=True, is_true_shell=True)
 	run_cmd_block(cmd)
 
 def run_benchmark(host, normal_user, root_user, grubentry, total_count, test_user, testcmd, reboot=True, silent=False):
@@ -168,16 +206,16 @@ def run_benchmark(host, normal_user, root_user, grubentry, total_count, test_use
 	print("Connection correct, starting...")
 	if reboot:
 		print("Change grub.cfg before reboot")
-		ssh_cmd(host, root_user, ['sed -i "s/^set.default.*$/set default=' + grubentry + '/g" /boot/EFI/grub2/grub.cfg'], False)
+		ssh_cmd(host, root_user, ['sed -i "s/^set.default.*$/set default=' + grubentry + '/g" /boot/EFI/grub2/grub.cfg'], False, is_true_shell=True)
 		print("result")
-		ssh_cmd(host, normal_user, ["grep " + grubentry + " /boot/EFI/grub2/grub.cfg"], False)
+		ssh_cmd(host, normal_user, ["grep " + grubentry + " /boot/EFI/grub2/grub.cfg"], False, is_true_shell=True)
 		ssh_reboot(host, normal_user, root_user)
 	else:
 		print("Skip reboot")
 
 	print("Current machine")
-	ssh_cmd(host, normal_user, ["uname -a"], False)
-	ssh_cmd(host, normal_user, ["zgrep ILP32 /proc/config.gz"], False)
+	ssh_cmd(host, normal_user, ["uname -a"], False, is_true_shell=True)
+	ssh_cmd(host, normal_user, ["zgrep ILP32 /proc/config.gz"], False, is_true_shell=True)
 
 	count = 0
 	while(count < total_count):
@@ -193,7 +231,7 @@ def compile_kernel(host, user, path, commit, extra_config, dry_run=False, silent
 	print("compile_kernel start at " + str(dt))
 
 	if not dryrun:
-		ssh_wait_connection(host, user, dry_run)
+		ssh_wait_connection(host, user, dry_run, debug=True)
 
 		cmd="cd " + path + "; git checkout -f " + commit
 		ssh_transport(host, user, [cmd], dry_run, silent=silent)
@@ -219,20 +257,21 @@ def remote_copy_log_file(src, src_user, dst, dst_user, src_dir, dst_dir, files, 
 			print("scp -p " + src_user + "@" + src + ":" + src_dir + "/" + f + " " + dst_user + "@" + dst + ":" + dst_dir)
 		scp_s2s(src, src_user, dst, dst_user, p, dst_dir + "/" + f.rstrip('\n'))
 
-def run_benchmark_and_get_log(host, host_user, guest, guest_user, guest_root, this_grubentry, count, test_cmd, log_cmd, log_dir, host_log_dir, silent=False, reboot=True, dryrun=False):
+#Do not save log when log_cmd is False
+def run_benchmark_and_get_log(host, host_user, test, host_log_dir, silent=False, reboot=True, dryrun=False):
 	if dryrun:
 		print(function_name())
 		return
 
-	if log_cmd:
-		olds = ssh_cmd_get_log(host=guest, user=guest_user, cmd=log_cmd)
+	if "log_cmd" in test:
+		olds = ssh_cmd_get_log(host=test["host"], user=test["user"], cmd=test["log_cmd"])
 
-	run_benchmark(host=guest, normal_user=guest_user, root_user=guest_root, grubentry=this_grubentry, total_count=count, test_user=guest_root, testcmd=test_cmd, silent=silent, reboot=reboot)
-	if log_cmd:
-		news = ssh_cmd_get_log(host=guest, user=guest_user, cmd=log_cmd)
+	run_benchmark(host=test["host"], normal_user=test["user"], root_user=test["root"], grubentry=test["grub"], total_count=test["total_test_count"], test_user=test["root"], testcmd=test["testsuite"], silent=silent, reboot=reboot)
+	if "log_cmd" in test:
+		news = ssh_cmd_get_log(host=test["host"], user=test["user"], cmd=test["log_cmd"])
 		new_logs = list(set(news) - set(olds))
 		print(new_logs)
-		remote_copy_log_file(guest, guest_user, host, host_user, log_dir, host_log_dir, new_logs)
+		remote_copy_log_file(test["host"], test["user"], host, host_user, test["log_dir"], host_log_dir, new_logs)
 
 def run_test(config, dryrun=False):
 	server = config["server"]
@@ -262,7 +301,7 @@ def run_test(config, dryrun=False):
 			print("skip compile kernel")
 
 		if test and "testsuite" in test:
-			run_benchmark_and_get_log(server["host"], server["user"], test["host"], test["user"], test["root"], test["grub"], test["total_test_count"], test["testsuite"], test["log_cmd"], test["log_dir"], log_path, dryrun=dryrun)
+			run_benchmark_and_get_log(server["host"], server["user"], test, log_path, dryrun=dryrun)
 		else:
 			print("skip: run benchmark")
 
@@ -271,7 +310,17 @@ def test():
 	host_user="z00293696"
 	ssh_transport(host, host_user, ["ls"])
 	ssh_transport(host, host_user, ["sleep 1"])
+	ssh_cmd(host, host_user, ["ls", "sleep 1", "echo 886"], is_true_shell=True)
 
+	olds = ssh_cmd_get_log(host, host_user, ["ls"])
+	print(olds)
+	print(type(olds))
+	news = ssh_cmd_get_log(host, host_user, ["ls -a"])
+	print(news)
+	new_logs = list(set(news) - set(olds))
+	print(new_logs)
+
+	#FIXME: it could not be used for current run_benchmark_and_get_log
 	#guest="d03-09"
 	#guest_user="z00293696"
 	#guest_root="root"
@@ -282,7 +331,7 @@ def test():
 	#run_benchmark_and_get_log(host, host_user, guest, guest_user, guest_root, "", 1, testsuite, "", "", "", reboot=False)
 
 	print("FULL DRYRUN")
-	server = {u'host': u'bj23_new', u'log_base': u'/home/z00293696/works/source/testsuite/testresult/ilp32/20161104_specint_LP64_ilp32_on_aarch32_on', u'user': u'z00293696'}
+	server = {u'host': u'bj23', u'log_base': u'/home/z00293696/works/source/testsuite/testresult/ilp32/20161104_specint_LP64_ilp32_on_aarch32_on', u'user': u'z00293696'}
 	kernel = {u'commits': [{u'commit': u'afb510f', u'name': u'ilp32_merged'}, {u'commit': u'a5ba168', u'name': u'ilp32_unmerged'}], u'config_fragment': [u'kernel_el0_config', u'kernel_ilp32_config', u'kernel_disable_arm_smmu_v3_config'], u'host': u'heyunlei', u'path': u'/home/z00293696/works/source/kernel/hulk', u'user': u'z00293696'}
 	test = {u'grub': u'z00293696-ilp32-test', u'host': u'D03-02', u'kernel_install': u'/boot/z00293696-ilp32-test', u'log_cmd': [u'cd /home/z00293696/speccpu2006/result; ls'], u'log_dir': u'/home/z00293696/speccpu2006/result', u'root': u'root', u'testsuite': [u'cd /home/z00293696/speccpu2006;. ./shrc; screen -L runspec --config=Arm64-single-core-linux64-arm64-lp64-gcc49.cfg --size=test,train,ref --noreportable --tune=base,peak --iterations=3 --verbose 0 bzip2 mcf hmmer libquantum'], u'total_test_count': 1, u'user': u'z00293696'}
 	config = {"server": server, "kernel": kernel, "test": test}
