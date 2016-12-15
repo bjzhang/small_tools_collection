@@ -85,6 +85,7 @@ def ssh_cmd_get_log_paramiko(host, user, cmd):
 
 #Return list of file through the given cmd on user@host
 def ssh_cmd_get_log(host, user, cmd):
+	ssh_wait_connection(host, user)
 	if isinstance(cmd, unicode):
 		cmd = cmd.encode("utf-8")
 
@@ -104,8 +105,7 @@ def ssh_wait_connection(host, normal_user, dry_run=False, debug=False):
 			ssh_cmd(host, normal_user, ["echo -n"], is_true_shell=True)
 			break
 		except:
-			#print(".", end="")
-			print(".")
+			print(".", end="")
 			time.sleep(10)
 
 def ssh_transport_paramiko(host, user, cmd, dry_run=False, silent=False):
@@ -138,7 +138,12 @@ def ssh_transport(host, user, cmd, dry_run=False, silent=False):
 
 def ssh_reboot(host, normal_user, root_user):
 	print("Rebooting...")
-	ssh_cmd(host, root_user, ["reboot"], False)
+	try:
+		ssh_cmd(host, root_user, ["reboot"], False, is_true_shell=True)
+	except subprocess.CalledProcessError:
+		#Subprocess think reboot is failure. It is because of disconnecting of ssh.
+		pass
+
 	while True:
 		try:
 			ssh_cmd(host, normal_user, ["echo -n"], is_true_shell=True)
