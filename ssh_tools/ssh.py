@@ -62,7 +62,7 @@ def ssh_cmd_paramiko(host, user, cmd, silent=True):
 
 def ssh_cmd(host, user, cmd, silent=True, is_true_shell=False):
 	for i, c in enumerate(cmd):
-		current_cmd = ['ssh ' + user + '@' + host + ' \"' + c + '\"']
+		current_cmd = ['ssh ' + user + '@' + host + ' \'' + c + '\'']
 		if not silent:
 			print(current_cmd)
 
