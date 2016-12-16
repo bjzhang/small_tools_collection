@@ -25,9 +25,14 @@ from pprint import pprint	#for pprint.pprint
 debug=False
 test_mode=False
 
+#basic function which is not relative to the specific function of this script
 def function_name():
 	#ref <http://stackoverflow.com/questions/251464/how-to-get-a-function-name-as-a-string-in-python>
 	return traceback.extract_stack(None, 2)[0][2]
+
+def print_flush(s):
+	print(s, end="")
+	sys.stdout.flush()
 
 def run_cmd_block(cmd, is_true_shell=False):
 	subprocess.check_call(args = cmd, shell=is_true_shell)
@@ -60,9 +65,9 @@ def ssh_cmd_paramiko(host, user, cmd, silent=True):
 				print(s, end="")
 #		print("stderr: " + str(stderr.readlines()))
 
-def ssh_cmd(host, user, cmd, silent=True, is_true_shell=False, allow_fail=False):
+def ssh_cmd(host, user, cmd, extra_opts="", silent=True, is_true_shell=False, allow_fail=False):
 	for i, c in enumerate(cmd):
-		current_cmd = ['ssh ' + user + '@' + host + ' \'' + c + '\'']
+		current_cmd = ['ssh ' + extra_opts + ' ' + user + '@' + host + ' \'' + c + '\'']
 		if not silent:
 			print(current_cmd)
 
@@ -140,12 +145,12 @@ def ssh_transport_paramiko(host, user, cmd, dry_run=False, silent=False):
 			if len(s) > 0:
 				print(s, end="")
 
-def ssh_transport(host, user, cmd, dry_run=False, silent=False):
-	ssh_cmd(host, user, cmd, is_true_shell=True)
+def ssh_transport(host, user, cmd, extra_opts="", dry_run=False, silent=False):
+	ssh_cmd(host, user, cmd, extra_opts=extra_opts, is_true_shell=True)
 
 def ssh_reboot(host, normal_user, root_user):
 	print("Rebooting...")
-	ssh_cmd(host, root_user, ["reboot"], False, is_true_shell=True, allow_fail=True)
+	ssh_cmd(host, root_user, ["reboot"], silent=False, is_true_shell=True, allow_fail=True)
 
 	while True:
 		try:
@@ -214,23 +219,23 @@ def run_benchmark(host, normal_user, root_user, grubentry, total_count, test_use
 	print("Connection correct, starting...")
 	if reboot:
 		print("Change grub.cfg before reboot")
-		ssh_cmd(host, root_user, ['sed -i "s/^set.default.*$/set default=' + grubentry + '/g" /boot/EFI/grub2/grub.cfg'], False, is_true_shell=True)
+		ssh_cmd(host, root_user, ['sed -i "s/^set.default.*$/set default=' + grubentry + '/g" /boot/EFI/grub2/grub.cfg'], silent=False, is_true_shell=True)
 		print("result")
-		ssh_cmd(host, normal_user, ["grep " + grubentry + " /boot/EFI/grub2/grub.cfg"], False, is_true_shell=True)
+		ssh_cmd(host, normal_user, ["grep " + grubentry + " /boot/EFI/grub2/grub.cfg"], silent=False, is_true_shell=True)
 		ssh_reboot(host, normal_user, root_user)
 	else:
 		print("Skip reboot")
 
 	print("Current machine")
-	ssh_cmd(host, normal_user, ["uname -a"], False, is_true_shell=True)
-	ssh_cmd(host, normal_user, ["zgrep CONFIG_COMPAT /proc/config.gz"], False, is_true_shell=True, allow_fail=True)
-	ssh_cmd(host, normal_user, ["zgrep CONFIG_AARCH32_EL0 /proc/config.gz"], False, is_true_shell=True, allow_fail=True)
-	ssh_cmd(host, normal_user, ["zgrep CONFIG_ARM64_ILP32 /proc/config.gz"], False, is_true_shell=True, allow_fail=True)
+	ssh_cmd(host, normal_user, ["uname -a"], silent=False, is_true_shell=True)
+	ssh_cmd(host, normal_user, ["zgrep CONFIG_COMPAT /proc/config.gz"], silent=False, is_true_shell=True, allow_fail=True)
+	ssh_cmd(host, normal_user, ["zgrep CONFIG_AARCH32_EL0 /proc/config.gz"], silent=False, is_true_shell=True, allow_fail=True)
+	ssh_cmd(host, normal_user, ["zgrep CONFIG_ARM64_ILP32 /proc/config.gz"], silent=False, is_true_shell=True, allow_fail=True)
 
 	count = 0
 	while(count < total_count):
 		print("count is " + str(count))
-		ssh_transport(host, test_user, testcmd, silent=silent)
+		ssh_transport(host, test_user, testcmd, extra_opts="-t", silent=silent)
 		count = count + 1
 
 	dt = datetime.datetime.now()
@@ -244,13 +249,13 @@ def compile_kernel(host, user, path, commit, extra_config, dry_run=False, silent
 		ssh_wait_connection(host, user, dry_run, debug=True)
 
 		cmd="cd " + path + "; git checkout -f " + commit
-		ssh_transport(host, user, [cmd], dry_run, silent=silent)
+		ssh_transport(host, user, [cmd], dry_run=dry_run, silent=silent)
 
 		cmd="export PATH=/home/z00293696/works/source/linux_toolkit/bin:/home/z00293696/works/software/ilp32-gcc/20160612_little_endian_toolchain/install/bin:$PATH; cd " + path + "; kernel_build --path " + path + " --disable install_header_to_cc"
 		for i, extra in enumerate(extra_config):
 			cmd = cmd + " --extra " + extra
 
-		ssh_transport(host, user, [cmd], dry_run, silent=silent)
+		ssh_transport(host, user, [cmd], dry_run=dry_run, silent=silent)
 
 	print("compile_kernel end at " + str(dt))
 
@@ -283,6 +288,40 @@ def run_benchmark_and_get_log(host, host_user, test, host_log_dir, silent=False,
 		print(new_logs)
 		remote_copy_log_file(test["host"], test["user"], host, host_user, test["log_dir"], host_log_dir, new_logs)
 
+#Check the environment before the script run.
+def env_check(config):
+	empty_echo = "echo -n"
+
+	print("Environment test, include ssh(scp) connection test, essential command test")
+	print_flush("Test connection to server: ")
+	ssh_cmd(config["server"]["host"], config["server"]["user"], [empty_echo], silent=not debug, is_true_shell=True)
+	print("Successful")
+	print_flush("Test connection to kernel build machine: ")
+	ssh_cmd(config["kernel"]["host"], config["kernel"]["user"], [empty_echo], silent=not debug, is_true_shell=True)
+	print("Successful")
+	print_flush("Test connection to test machine with normal user: ")
+	ssh_cmd(config["test"]["host"], config["test"]["user"], [empty_echo], silent=not debug, is_true_shell=True)
+	print("Successful")
+	print_flush("Test connection to test machine with normal root: ")
+	ssh_cmd(config["test"]["host"], config["test"]["root"], [empty_echo], silent=not debug, is_true_shell=True)
+	print("Successful")
+	print_flush("Whether 'screen' command is existed in test machine: ")
+	try:
+		ssh_cmd(config["test"]["host"], config["test"]["user"], ["screen sleep 1", "screen " + empty_echo], extra_opts="-t", silent=not debug, is_true_shell=True)
+		print("Successful")
+	except subprocess.CalledProcessError:
+		print("Fail: check screen command in your test machine " + config["test"]["host"])
+	print_flush("Test ssh from kernel to test: ")
+	ssh_cmd(config["kernel"]["host"], config["kernel"]["user"], ["ssh " + config["test"]["user"] + "@" + config["test"]["host"] + " " + empty_echo], silent=not debug, is_true_shell=True)
+	print("Successful")
+	print_flush("Test ssh from kernel to server: ")
+	ssh_cmd(config["kernel"]["host"], config["kernel"]["user"], ["ssh " + config["server"]["user"] + "@" + config["server"]["host"] + " " + empty_echo], silent=not debug, is_true_shell=True)
+	print("Successful")
+	print_flush("Test ssh from test to server: ")
+	ssh_cmd(config["test"]["host"], config["test"]["user"], ["ssh " + config["server"]["user"] + "@" + config["server"]["host"] + " " + empty_echo], silent=not debug, is_true_shell=True)
+	print("Successful")
+
+#Run the test according to config. If fail, please set "test_mode=False" in the beginning of this file.
 def run_test(config, dryrun=False):
 	server = config["server"]
 	kernel = config["kernel"]
@@ -345,6 +384,10 @@ def test():
 	kernel = {u'commits': [{u'commit': u'afb510f', u'name': u'ilp32_merged'}, {u'commit': u'a5ba168', u'name': u'ilp32_unmerged'}], u'config_fragment': [u'kernel_el0_config', u'kernel_ilp32_config', u'kernel_disable_arm_smmu_v3_config'], u'host': u'heyunlei', u'path': u'/home/z00293696/works/source/kernel/hulk', u'user': u'z00293696'}
 	test = {u'grub': u'z00293696-ilp32-test', u'host': u'D03-02', u'kernel_install': u'/boot/z00293696-ilp32-test', u'log_cmd': [u'cd /home/z00293696/speccpu2006/result; ls'], u'log_dir': u'/home/z00293696/speccpu2006/result', u'root': u'root', u'testsuite': [u'cd /home/z00293696/speccpu2006;. ./shrc; screen -L runspec --config=Arm64-single-core-linux64-arm64-lp64-gcc49.cfg --size=test,train,ref --noreportable --tune=base,peak --iterations=3 --verbose 0 bzip2 mcf hmmer libquantum'], u'total_test_count': 1, u'user': u'z00293696'}
 	config = {"server": server, "kernel": kernel, "test": test}
+
+	print("Environment check")
+	env_check(config)
+
 	run_test(config, dryrun=True)
 
 	print("\nDRYRUN: skip kernel compile")
@@ -370,6 +413,7 @@ else:
 	with open(sys.argv[1], 'r') as fp:
 		config = json.load(fp)
 
+	env_check(config)
 	run_test(config)
 
 	with open('config.json', 'w') as fp:
