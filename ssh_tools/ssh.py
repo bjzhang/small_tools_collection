@@ -25,7 +25,7 @@ from pprint import pprint	#for pprint.pprint
 debug=False
 test_mode=False
 
-#basic function which is not relative to the specific function of this script
+#Basic function which is not relative to the specific function of this script
 def function_name():
 	#ref <http://stackoverflow.com/questions/251464/how-to-get-a-function-name-as-a-string-in-python>
 	return traceback.extract_stack(None, 2)[0][2]
@@ -148,6 +148,8 @@ def ssh_transport_paramiko(host, user, cmd, dry_run=False, silent=False):
 def ssh_transport(host, user, cmd, extra_opts="", dry_run=False, silent=False):
 	ssh_cmd(host, user, cmd, extra_opts=extra_opts, is_true_shell=True)
 
+#Basic function end
+
 def ssh_reboot(host, normal_user, root_user):
 	print("Rebooting...")
 	ssh_cmd(host, root_user, ["reboot"], silent=False, is_true_shell=True, allow_fail=True)
@@ -248,10 +250,20 @@ def compile_kernel(host, user, path, commit, extra_config, dry_run=False, silent
 	if not dryrun:
 		ssh_wait_connection(host, user, dry_run, debug=True)
 
-		cmd="cd " + path + "; git checkout -f " + commit
-		ssh_transport(host, user, [cmd], dry_run=dry_run, silent=silent)
+		linux_toolkit="/home/z00293696/works/source/linux_toolkit"
+		try:
+			cmd="cd " + linux_toolkit + "; git pull"
+			ssh_transport(host, user, [cmd], dry_run=dry_run, silent=silent)
+		except subprocess.CalledProcessError:
+			print("Update linux toolkit failed when run the following cmd: " + cmd)
 
-		cmd="export PATH=/home/z00293696/works/source/linux_toolkit/bin:/home/z00293696/works/software/ilp32-gcc/20160612_little_endian_toolchain/install/bin:$PATH; cd " + path + "; kernel_build --path " + path + " --disable install_header_to_cc"
+		try:
+			cmd="cd " + path + "; git checkout -f " + commit
+			ssh_transport(host, user, [cmd], dry_run=dry_run, silent=silent)
+		except subprocess.CalledProcessError:
+			print("Check out kernel source failed when run the following cmd: " + cmd)
+
+		cmd="export PATH=" + linux_toolkit + "/bin:/home/z00293696/works/software/ilp32-gcc/20160612_little_endian_toolchain/install/bin:$PATH; cd " + path + "; kernel_build --path " + path + " --disable install_header_to_cc"
 		for i, extra in enumerate(extra_config):
 			cmd = cmd + " --extra " + extra
 
