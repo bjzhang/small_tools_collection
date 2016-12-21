@@ -422,14 +422,15 @@ if test_mode:
 	print("TEST")
 	test()
 else:
-	with open(sys.argv[1], 'r') as fp:
-		config = json.load(fp)
-
-	env_check(config)
-	run_test(config)
-
-	with open('config.json', 'w') as fp:
-		json.dump(config, fp, indent=4, sort_keys=True)
-
+	i = 1;
+	while i < len(sys.argv):
+		print(sys.argv[i])
+		with open(sys.argv[i], 'r') as fp:
+			config = json.load(fp)
+		env_check(config)
+		run_test(config)
+		with open('config.json', 'w') as fp:
+			json.dump(config, fp, indent=4, sort_keys=True)
+		i = i + 1
 print("END")
 
