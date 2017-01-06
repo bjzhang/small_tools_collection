@@ -5,6 +5,7 @@ import sys
 import re
 import glob
 import getopt
+import os	#for os.path.isdir
 
 def specint_avg(paths, names):
 #	paths = ["/home/z00293696/works/source/testsuite/testresult/ilp32/20161022_1024_specint_LP64/ILP32_disabled"]
@@ -12,7 +13,11 @@ def specint_avg(paths, names):
 
 	results=[]
 	for path in paths:
-		files = glob.glob(path + globs)
+		if os.path.isdir(path):
+			files = glob.glob(path + globs)
+		else:
+			files = glob.glob(path)
+
 		for fn in files:
 			f = open(fn)
 			lines = f.readlines()
@@ -57,11 +62,17 @@ def specint_avg(paths, names):
 def diff(result1, result2):
 	diff = {}
 	for n, v in result1.items():
-		d = (result1[n] - result2[n]) / result2[n] * 100
-		if d > 0:
-			diff[n] = " %.2f%%" % d
+		if n in result1 and n in result2:
+			d = (result1[n] - result2[n]) / result2[n] * 100
+			if d > 0:
+				diff[n] = " %.2f%%" % d
+			else:
+				diff[n] = "%.2f%%" % d
 		else:
-			diff[n] = "%.2f%%" % d
+			if not n in result1:
+				print(n + " does exist in result1, skip")
+			if not n in result2:
+				print(n + " does exist in result2, skip")
 
 	return diff
 
@@ -122,7 +133,7 @@ def main(argv):
 	print("The test base:")
 	print(testbase)
 	full_name = ["400.perlbench",  "401.bzip2",  "403.gcc",  "429.mcf",  "445.gobmk",  "456.hmmer",  "458.sjeng",  "462.libquantum",  "464.h264ref",  "471.omnetpp",  "473.astar",  "483.xalancbmk"]
-	specint_diff(testresult, testbase, ["401.bzip2",  "429.mcf",  "456.hmmer",  "462.libquantum"])
+	specint_diff(testresult, testbase, full_name)
 
 
 if __name__ == "__main__":
