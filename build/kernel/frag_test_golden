@@ -1,0 +1,6 @@
+CONFIG_A1=y
+# CONFIG_BBB is not set
+# CONFIG_CC is not set
+# CONFIG_D4 is not set
+CONFIG_E5=m
+CONFIG_F6=m
