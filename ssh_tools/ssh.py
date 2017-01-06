@@ -362,7 +362,12 @@ def run_test(config, dryrun=False):
 			print("skip compile kernel")
 
 		if test and "testsuite" in test:
-			run_benchmark_and_get_log(server["host"], server["user"], test, log_path, dryrun=dryrun)
+			if test and "not_reboot" in test:
+				reboot=False
+			else:
+				reboot=True
+
+			run_benchmark_and_get_log(server["host"], server["user"], test, log_path, dryrun=dryrun, reboot=reboot)
 		else:
 			print("skip: run benchmark")
 
