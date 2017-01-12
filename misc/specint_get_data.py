@@ -6,12 +6,20 @@ import re
 import glob
 import getopt
 import os	#for os.path.isdir
+import numpy
+
+def format_percentage(number):
+	number = number * 100
+	if number >= 0:
+		return " %.2f%%" % number
+	else:
+		return "%.2f%%" % number
 
 def specint_avg(paths, names):
 #	paths = ["/home/z00293696/works/source/testsuite/testresult/ilp32/20161022_1024_specint_LP64/ILP32_disabled"]
 	globs = "/CINT2006.*.ref.txt"
 
-	results=[]
+	result={}
 	for path in paths:
 		if os.path.isdir(path):
 			files = glob.glob(path + globs)
@@ -22,7 +30,6 @@ def specint_avg(paths, names):
 			f = open(fn)
 			lines = f.readlines()
 			specint_result=False
-			result={}
 			for line in lines:
 				if re.match("======*", line):
 					specint_result=True
@@ -35,39 +42,27 @@ def specint_avg(paths, names):
 							if re.match(r'^' + name, line):
 								if re.match(r'^[0-9][0-9][0-9].*\*', line):
 									m = re.match(r'([0-9][0-9][0-9]\.[a-z0-9]+) *[0-9]+ *[0-9]+ *([0-9]+\.[0-9]+)', line)
-									result[m.group(1)] = m.group(2)
+									if not m.group(1) in result:
+										l = []
+										l.append(float(m.group(2)))
+										result[m.group(1)] = l
+									else:
+										result[m.group(1)].append(float(m.group(2)))
 
-			results.append(result)
-
-	sums = {}
-	nums = {}
-	for result in results:
-		for n, v in result.items():
-			if n in sums:
-				sums[n] = sums[n] + float(v)
-				nums[n] = nums[n] + 1
-			else:
-				sums[n] = float(v)
-				nums[n] = 1
-
-	#We got the sum and num of each test. Calculate the average.
-#	print(sums)
-#	print(nums)
 	avgs = {}
-	for n, v in sums.items():
-		avgs[n] = v / nums[n]
+	cv = {}
+	for n, v in result.iteritems():
+		avgs[n] = sum(v)/len(v)
+		cv[n] = format_percentage(numpy.std(v) / avgs[n])
 
-	return avgs
+	return (avgs, cv)
 
 def diff(result1, result2):
 	diff = {}
 	for n, v in result1.items():
 		if n in result1 and n in result2:
-			d = (result1[n] - result2[n]) / result2[n] * 100
-			if d > 0:
-				diff[n] = " %.2f%%" % d
-			else:
-				diff[n] = "%.2f%%" % d
+			d = (result1[n] - result2[n]) / result2[n]
+			diff[n] = format_percentage(d)
 		else:
 			if not n in result1:
 				print(n + " does exist in result1, skip")
@@ -81,11 +76,13 @@ def specint_diff(t1, t2, names):
 		print("testresult or testbase is empty, exit")
 		sys.exit(2)
 
-	print("Original numbers:")
-	s1 = specint_avg(t1, names)
-	s2 = specint_avg(t2, names)
-	print(s1)
-	print(s2)
+	(s1, cv1) = specint_avg(t1, names)
+	(s2, cv2) = specint_avg(t2, names)
+#	print("Original numbers:")
+#	print(s1)
+#	print(cv1)
+#	print(s2)
+#	print(cv2)
 
 	diff_result = diff(s1, s2)
 	keys = diff_result.keys()
@@ -99,8 +96,9 @@ def specint_diff(t1, t2, names):
 	print("")
 	print("Diff:")
 	print(t1)
+	print("%*s: %s %s %s %s" % (max_len_of_key + 2, "testcases", "increase", "cv(base)", "cv(result)", "cv: Coefficient of Variation"))
 	for key in keys:
-		print("%*s: %s" % (max_len_of_key + 2, key, diff_result[key]))
+		print("%*s:  %s  %s   %s" % (max_len_of_key + 2, key, diff_result[key], cv1[key], cv2[key]))
 
 def usage(argv):
 	print("Usage:")
