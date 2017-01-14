@@ -290,6 +290,9 @@ def run_benchmark_and_get_log(host, host_user, test, host_log_dir, silent=False,
 		print(function_name())
 		return
 
+	if "log_pre" in test:
+		ssh_cmd(host=test["host"], user=test["root"], cmd=[test["log_pre"]], is_true_shell=True)
+
 	if "log_cmd" in test:
 		olds = ssh_cmd_get_log(host=test["host"], user=test["user"], cmd=test["log_cmd"])
 
@@ -298,7 +301,7 @@ def run_benchmark_and_get_log(host, host_user, test, host_log_dir, silent=False,
 		news = ssh_cmd_get_log(host=test["host"], user=test["user"], cmd=test["log_cmd"])
 		new_logs = list(set(news) - set(olds))
 		print(new_logs)
-		remote_copy_log_file(test["host"], test["user"], host, host_user, test["log_dir"], host_log_dir, new_logs)
+		remote_copy_log_file(test["host"], test["root"], host, host_user, test["log_dir"], host_log_dir, new_logs)
 
 #Check the environment before the script run.
 def env_check(config):
@@ -331,6 +334,9 @@ def env_check(config):
 	print("Successful")
 	print_flush("Test ssh from test to server: ")
 	ssh_cmd(config["test"]["host"], config["test"]["user"], ["ssh " + config["server"]["user"] + "@" + config["server"]["host"] + " " + empty_echo], silent=not debug, is_true_shell=True)
+	print("Successful")
+	print_flush("Test ssh from test(root) to server: ")
+	ssh_cmd(config["test"]["host"], config["test"]["root"], ["ssh " + config["server"]["user"] + "@" + config["server"]["host"] + " " + empty_echo], silent=not debug, is_true_shell=True)
 	print("Successful")
 
 #Run the test according to config. If fail, please set "test_mode=False" in the beginning of this file.

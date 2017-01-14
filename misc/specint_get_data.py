@@ -78,10 +78,10 @@ def specint_diff(t1, t2, names):
 
 	(s1, cv1) = specint_avg(t1, names)
 	(s2, cv2) = specint_avg(t2, names)
-#	print("Original numbers:")
-#	print(s1)
+	print("Original numbers:")
+	print(s1)
 #	print(cv1)
-#	print(s2)
+	print(s2)
 #	print(cv2)
 
 	diff_result = diff(s1, s2)
