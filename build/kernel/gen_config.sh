@@ -51,6 +51,8 @@ while true; do
 	esac
 done
 
+ENABLE=`echo ${ENABLE} | tr "," " "`
+DISABLE=`echo ${DISABLE} | tr "," " "`
 TEMP=`mktemp --tmpdir`
 for e in $ENABLE; do
 	echo "CONFIG_$e=y" >>$TEMP
