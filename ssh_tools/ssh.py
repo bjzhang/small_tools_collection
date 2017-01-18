@@ -3,12 +3,7 @@
 #In [5]: list(set(temp1) - set(temp2))
 #Out[5]: ['Four', 'Three']
 
-#TODO: 
-#1.  seperate the lmbench and specint log.
-#2.  decrease the arguments of function. It is hard to maintain currently.
-
 from __future__ import print_function
-import paramiko
 import time
 import logging
 import select
@@ -40,31 +35,6 @@ def run_cmd_block(cmd, is_true_shell=False):
 def run_cmd_block_output(cmd, is_true_shell=False):
 	return subprocess.check_output(args = cmd, stderr=subprocess.STDOUT, shell=is_true_shell)
 
-def ssh_cmd_paramiko(host, user, cmd, silent=True):
-#	print("Connect on " + host + " with user: " + user + " cmd: <" + cmd + ">")
-#	logging.getLogger("paramiko").setLevel(logging.WARNING) ssh = paramiko.SSHClient()
-	if isinstance(host, unicode):
-		host = host.encode("utf-8")
-
-	if isinstance(user, unicode):
-		user = user.encode("utf-8")
-
-	ssh = paramiko.SSHClient()
-	ssh.load_system_host_keys()
-	ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-	ssh.connect(host, username=user, timeout=120)
-	for i, c in enumerate(cmd):
-		if not silent:
-			print(c)
-		stdin,stdout,stderr = ssh.exec_command(c)
-		if not silent:
-			print("stdout: " + str(stdout.readlines()))
-
-		for s in stderr.readlines():
-			if len(s) > 0:
-				print(s, end="")
-#		print("stderr: " + str(stderr.readlines()))
-
 def ssh_cmd(host, user, cmd, extra_opts="", silent=True, is_true_shell=False, allow_fail=False):
 	for i, c in enumerate(cmd):
 		current_cmd = ['ssh ' + extra_opts + ' ' + user + '@' + host + ' \'' + c + '\'']
@@ -79,21 +49,6 @@ def ssh_cmd(host, user, cmd, extra_opts="", silent=True, is_true_shell=False, al
 				pass
 			else:
 				raise
-
-def ssh_cmd_get_log_paramiko(host, user, cmd):
-#	print("Testing on " + host + " with user: " + user + " cmd: <" + cmd + ">")
-#	logging.getLogger("paramiko").setLevel(logging.WARNING) ssh = paramiko.SSHClient()
-	ssh = paramiko.SSHClient()
-	ssh.load_system_host_keys()
-	ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-	ssh.connect(host, username=user, timeout=120)
-	result = []
-	for i, c in enumerate(cmd):
-		stdin,stdout,stderr = ssh.exec_command(c)
-		r = stdout.readlines()
-		result = result + r
-
-	return result
 
 #Return list of file through the given cmd on user@host
 def ssh_cmd_get_log(host, user, cmd):
@@ -120,31 +75,6 @@ def ssh_wait_connection(host, normal_user, dry_run=False, debug=False):
 			print(".", end="")
 			time.sleep(10)
 
-def ssh_transport_paramiko(host, user, cmd, dry_run=False, silent=False):
-	ssh = paramiko.SSHClient()
-	ssh.load_system_host_keys()
-	ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-	ssh.connect(host, username=user, timeout=120)
-	transport = ssh.get_transport()
-	for i, c in enumerate(cmd):
-		print(c)
-		channel = transport.open_session()
-		channel.get_pty()
-		channel.exec_command(c)
-		while True:
-			r, w, x = select.select([channel], [], [], 0.0)
-			if len(r) > 0:
-				s = channel.recv(1024)
-				if len(s) > 0:
-					if not silent:
-						print(s, end="")
-				else:
-					break
-		if channel.recv_stderr_ready():
-			s = channel.recv_stderr(1024)
-			if len(s) > 0:
-				print(s, end="")
-
 def ssh_transport(host, user, cmd, extra_opts="", dry_run=False, silent=False):
 	ssh_cmd(host, user, cmd, extra_opts=extra_opts, is_true_shell=True)
 
@@ -164,35 +94,6 @@ def ssh_reboot(host, normal_user, root_user):
 	print("Waiting for reboot: ")
 	ssh_wait_connection(host, normal_user)
 	print("done")
-
-def scp(host, user, src, dst, silent=True):
-	def progress(so_far, total):
-		pbar.update(float(so_far) / float(total) * 100)
-
-	#host="D03-02"
-	#user="z00293696"
-	#src="/mnt/opensuse_leap42.1_aarch64_10.qcow2/2/"
-	#dst="/home/z00293696/works/root"
-	dst_dir=os.path.dirname(dst)
-	print("scp " + src + " " + user + "@" + host + ":" + dst)
-
-	ssh = paramiko.SSHClient()
-	ssh.load_system_host_keys()
-	ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-	ssh.connect(host, username=user, timeout=120, compress=True)
-	stdin,stdout,stderr = ssh.exec_command("mkdir -p " + dst_dir)
-	s = stdout.readlines()
-	if len(s) > 0:
-		print(s, end="")
-	s = stderr.readlines()
-	if len(s) > 0:
-		print(s, end="")
-
-	sftp = paramiko.SFTPClient.from_transport(ssh.get_transport())
-	pbar = progressbar.ProgressBar(maxval=100).start()
-	sftp.put(src, dst, progress)
-	#TODO: chmod, chown
-	pbar.finish()
 
 def scp_s2s(src, src_user, dst, dst_user, src_path, dst_path, dryrun=False):
 	cmd = ['scp', '-p', src_user + "@" + src + ":" + src_path, dst_user + "@" + dst + ":" + dst_path]
