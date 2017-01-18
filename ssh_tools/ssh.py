@@ -96,7 +96,7 @@ def ssh_reboot(host, normal_user, root_user):
 	print("done")
 
 def scp_s2s(src, src_user, dst, dst_user, src_path, dst_path, dryrun=False):
-	cmd = ['scp', '-p', src_user + "@" + src + ":" + src_path, dst_user + "@" + dst + ":" + dst_path]
+	cmd = ['scp', '-pr', src_user + "@" + src + ":" + src_path, dst_user + "@" + dst + ":" + dst_path]
 	print(cmd)
 	if dryrun:
 		return
@@ -107,7 +107,7 @@ def scp_s2s(src, src_user, dst, dst_user, src_path, dst_path, dryrun=False):
 	ssh_cmd(dst, dst_user, ['mkdir -p ' + os.path.dirname(dst_path)], silent=True, is_true_shell=True)
 	run_cmd_block(cmd)
 
-def run_benchmark(host, normal_user, root_user, grubentry, total_count, test_user, testcmd, reboot=True, silent=False):
+def run_benchmark(host, normal_user, root_user, grubentry, total_count, test_user, testcmd, grub_cfg, reboot=True, silent=False):
 	print(host)
 	print(normal_user)
 	print(grubentry)
@@ -122,9 +122,9 @@ def run_benchmark(host, normal_user, root_user, grubentry, total_count, test_use
 	print("Connection correct, starting...")
 	if reboot:
 		print("Change grub.cfg before reboot")
-		ssh_cmd(host, root_user, ['sed -i "s/^set.default.*$/set default=' + grubentry + '/g" /boot/EFI/grub2/grub.cfg'], silent=False, is_true_shell=True)
+		ssh_cmd(host, root_user, ['sed -i "s/^set.default.*$/set default=' + grubentry + '/g" ' + grub_cfg], silent=False, is_true_shell=True)
 		print("result")
-		ssh_cmd(host, normal_user, ["grep " + grubentry + " /boot/EFI/grub2/grub.cfg"], silent=False, is_true_shell=True)
+		ssh_cmd(host, normal_user, ["grep " + grubentry + " " + grub_cfg], silent=False, is_true_shell=True)
 		ssh_reboot(host, normal_user, root_user)
 	else:
 		print("Skip reboot")
@@ -197,7 +197,7 @@ def run_benchmark_and_get_log(host, host_user, test, host_log_dir, silent=False,
 	if "log_cmd" in test:
 		olds = ssh_cmd_get_log(host=test["host"], user=test["user"], cmd=test["log_cmd"])
 
-	run_benchmark(host=test["host"], normal_user=test["user"], root_user=test["root"], grubentry=test["grub"], total_count=test["total_test_count"], test_user=test["root"], testcmd=test["testsuite"], silent=silent, reboot=reboot)
+	run_benchmark(host=test["host"], normal_user=test["user"], root_user=test["root"], grubentry=test["grub"], total_count=test["total_test_count"], test_user=test["root"], testcmd=test["testsuite"], grub_cfg=test["grub_cfg"], silent=silent, reboot=reboot)
 	if "log_cmd" in test:
 		news = ssh_cmd_get_log(host=test["host"], user=test["user"], cmd=test["log_cmd"])
 		new_logs = list(set(news) - set(olds))
@@ -258,9 +258,11 @@ def run_test(config, dryrun=False):
 		if kernel and "path" in kernel:
 			image_path = kernel["path"] + "/arch/arm64/boot/Image"
 			config_path = kernel["path"] + "/.config"
-			compile_kernel(kernel["host"], kernel["user"], kernel["path"], commit["commit"], kernel["config_fragment"], silent=True, dryrun=dryrun)
-			if test and "kernel_install" in test:
-				scp_s2s(kernel["host"], kernel["user"], test["host"], test["root"], image_path, test["kernel_install"], dryrun=dryrun)
+			#compile_kernel(kernel["host"], kernel["user"], kernel["path"], commit["commit"], kernel["config_fragment"], silent=True, dryrun=dryrun)
+			if test and "kernel_install" in kernel:
+				scp_s2s(kernel["host"], kernel["user"], test["host"], test["root"], image_path, kernel["kernel_install"], dryrun=dryrun)
+				scp_s2s(kernel["host"], kernel["user"], test["host"], test["root"], kernel["path"] + "/" + kernel["dtb_path"], kernel["dtb_install"], dryrun=dryrun)
+				scp_s2s(kernel["host"], kernel["user"], test["host"], test["root"], kernel["path"] + "/" + kernel["modules_path"], kernel["modules_install"], dryrun=dryrun)
 				scp_s2s(kernel["host"], kernel["user"], server["host"], server["user"], image_path, log_path + "/" + commit["commit"] + "_" + commit["name"] + "_Image", dryrun=dryrun)
 				scp_s2s(kernel["host"], kernel["user"], server["host"], server["user"], config_path, log_path + "/" + commit["commit"] + "_" + commit["name"] + "_config", dryrun=dryrun)
 			else:
