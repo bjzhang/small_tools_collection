@@ -144,19 +144,21 @@ def run_benchmark(host, normal_user, root_user, grubentry, total_count, test_use
 	dt = datetime.datetime.now()
 	print("test finish at " + str(dt))
 
-def compile_kernel(host, user, path, commit, extra_config, dry_run=False, silent=False, checkout_force=False, dryrun=False):
+def compile_kernel(host, user, path, commit, config_enable, config_disable="", dry_run=False, silent=False, checkout_force=False, dryrun=False):
 	dt = datetime.datetime.now()
 	print("compile_kernel start at " + str(dt))
+	config_enable = config_enable.encode("utf-8")
+	config_disable = config_disable.encode("utf-8")
 
 	if not dryrun:
 		ssh_wait_connection(host, user, dry_run, debug=True)
 
-		linux_toolkit="/home/z00293696/works/source/linux_toolkit"
+		tools="/home/bamvor/works/source/small_tools_collection"
 		try:
-			cmd="cd " + linux_toolkit + "; git pull"
+			cmd="cd " + tools + "; git pull"
 			ssh_transport(host, user, [cmd], dry_run=dry_run, silent=silent)
 		except subprocess.CalledProcessError:
-			print("Update linux toolkit failed when run the following cmd: " + cmd)
+			print("Update tools failed when run the following cmd: " + cmd)
 
 		try:
 			cmd="cd " + path + "; git checkout -f " + commit
@@ -164,9 +166,9 @@ def compile_kernel(host, user, path, commit, extra_config, dry_run=False, silent
 		except subprocess.CalledProcessError:
 			print("Check out kernel source failed when run the following cmd: " + cmd)
 
-		cmd="export PATH=" + linux_toolkit + "/bin:/home/z00293696/works/software/ilp32-gcc/20160612_little_endian_toolchain/install/bin:$PATH; cd " + path + "; kernel_build --path " + path + " --disable install_header_to_cc"
-		for i, extra in enumerate(extra_config):
-			cmd = cmd + " --extra " + extra
+		cmd="PATH=$PATH:/home/bamvor/works/software/toolchain/gcc-linaro-6.2.1-2016.11-x86_64_aarch64-linux-gnu/gcc-linaro-6.2.1-2016.11-x86_64_aarch64-linux-gnu/bin; cd " + path + "; git am 0001-remove-mmc2-on-hikey-dts.patch; " + tools + "/build/kernel/build.sh " + path + " " + config_enable
+		if config_disable:
+			cmd = cmd + " " + config_disable
 
 		ssh_transport(host, user, [cmd], dry_run=dry_run, silent=silent)
 
@@ -258,7 +260,7 @@ def run_test(config, dryrun=False):
 		if kernel and "path" in kernel:
 			image_path = kernel["path"] + "/arch/arm64/boot/Image"
 			config_path = kernel["path"] + "/.config"
-			#compile_kernel(kernel["host"], kernel["user"], kernel["path"], commit["commit"], kernel["config_fragment"], silent=True, dryrun=dryrun)
+			compile_kernel(kernel["host"], kernel["user"], kernel["path"], commit["commit"], kernel["config_enable"], kernel["config_disable"], silent=True, dryrun=dryrun)
 			if test and "kernel_install" in kernel:
 				scp_s2s(kernel["host"], kernel["user"], test["host"], test["root"], image_path, kernel["kernel_install"], dryrun=dryrun)
 				scp_s2s(kernel["host"], kernel["user"], test["host"], test["root"], kernel["path"] + "/" + kernel["dtb_path"], kernel["dtb_install"], dryrun=dryrun)

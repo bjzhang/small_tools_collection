@@ -1,0 +1,40 @@
+{
+    "kernel": {
+        "commits": [
+            {
+                "commit": "a3eb14be",
+                "name": "ilp32_disabled"
+            }
+        ],
+        "config_enable": "AARCH32_EL0,COMPAT",
+        "config_disable": "ARM64_ILP32",
+        "host": "bd",
+        "user": "bamvor",
+        "path": "/home/bamvor/works/source/kernel/linux",
+	"kernel_install": "/mnt/old-root/boot/Image-bamvor-test",
+	"dtb_path": "arch/arm64/boot/dts/hisilicon/hi6220-hikey.dtb",
+	"dtb_install": "/mnt/old-root/boot/hi6220-hikey-bamvor-test.dtb",
+	"modules_path": "usr/lib/modules/*",
+	"modules_install": "/lib/modules"
+    },
+    "server": {
+        "host": "ct1",
+        "log_base": "/home/bamvor/works/source/testsuite/testresult/ilp32/20170118_specint_LP64_ilp32_on_aarch32_on",
+        "user": "bamvor"
+    },
+    "test": {
+        "grub": "bamvor-test",
+	"grub_cfg": "/mnt/old-root/boot/grub/grub.cfg",
+        "host": "hk2",
+        "user": "root",
+        "root": "root",
+        "log_cmd": [
+            "cd /home/bamvor/CPU2006/result; ls"
+        ],
+        "log_dir": "/home/bamvor/CPU2006/result",
+        "testsuite": [
+            "cd /home/bamvor/CPU2006;. ./linaro_aarch64.sh perlbench bzip2 mcf gobmk sjeng libquantum h264ref xalancbmk"
+        ],
+        "total_test_count": 1
+    }
+}
