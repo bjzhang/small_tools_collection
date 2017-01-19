@@ -11,10 +11,11 @@ import numpy
 def format_percentage(number):
 	number = number * 100
 	if number >= 0:
-		return " %5.2f%%" % number
+		return " %6.2f%%" % number
 	else:
-		return "%5.2f%%" % number
+		return "%6.2f%%" % number
 
+#return dictionary of average and cv
 def get_avg(paths, names):
 	globs = "/perf_stat"
 	result={}
@@ -32,7 +33,7 @@ def get_avg(paths, names):
 				#24876432 iTLB-load-misses
 				#478928   armv8_pmuv3/exc_taken/
 				for name in names:
-					m = re.match(r'^\s*([0-9]+)\s+(' + name + ')\s*$', line.rstrip('\n'))
+					m = re.match(r'^\s*([0-9]+)\s+(' + name + ')\s*#?.*$', line.rstrip('\n'))
 					if m:
 						key = m.group(2)
 						value = m.group(1)
@@ -55,7 +56,8 @@ def diff(result1, result2):
 	diff = {}
 	for n, v in result1.items():
 		if n in result1 and n in result2:
-			d = (result1[n] - result2[n]) / result2[n]
+			#d = (result1[n] - result2[n]) / result2[n]
+			d = result1[n] / result2[n]
 			diff[n] = format_percentage(d)
 		else:
 			if not n in result1:
@@ -65,23 +67,23 @@ def diff(result1, result2):
 
 	return diff
 
-def get_diff(t1, t2, names, verbose):
-	if not t1 or not t2:
+def get_diff(result, base, names, verbose):
+	if not result or not base:
 		print("testresult or testbase is empty, exit")
 		sys.exit(2)
 
-	(s1, cv1) = get_avg(t1, names)
-	(s2, cv2) = get_avg(t2, names)
+	(average_result, cv_result) = get_avg(result, names)
+	(average_base, cv_base) = get_avg(base, names)
 
 	if verbose:
 		print("Original numbers:")
-		print(s2)
-	#	print(cv2)
-		print(s1)
-	#	print(cv1)
+		print(average_base)
+	#	print(cv_base)
+		print(average_result)
+	#	print(cv_result)
 		print("")
 
-	diff_result = diff(s1, s2)
+	diff_result = diff(average_result, average_base)
 	keys = diff_result.keys()
 	keys.sort()
 
@@ -90,10 +92,20 @@ def get_diff(t1, t2, names, verbose):
 		if len(key) > max_len_of_key:
 			max_len_of_key = len(key)
 
-	print("Diff: (result - base)/base")
-	print("%*s: %s %s %s %s" % (max_len_of_key + 2, "testcases", "increase", "cv(base)", "cv(result)", "cv: Coefficient of Variation"))
+	max_len_of_base = 0
+	for key in average_base:
+		if len(str(int(average_base[key]))) > max_len_of_base:
+			max_len_of_base = len(str(format(int(average_base[key]), ',')))
+
+	max_len_of_result = 0
+	for key in average_result:
+		if len(str(int(average_result[key]))) > max_len_of_result:
+			max_len_of_result = len(str(format(int(average_result[key]), ',')))
+
+	print("Diff: result/base")
+	print("%*s %*s %*s      %s   %s %s %s" % (max_len_of_key + 2, "testcases", max_len_of_base + 2, "base", max_len_of_result + 2, "result", "diff", "cv(base)", "cv(result)", "cv: Coefficient of Variation"))
 	for key in keys:
-		print("%*s:  %s  %s   %s" % (max_len_of_key + 2, key, diff_result[key], cv2[key], cv1[key]))
+		print("%*s %*s %*s  %s  %s   %s" % (max_len_of_key + 2, key, max_len_of_base + 2, format(int(average_base[key]), ','), max_len_of_result + 2, format(int(average_result[key]), ','), diff_result[key], cv_base[key], cv_result[key]))
 
 def usage(argv):
 	print("Usage:")
@@ -133,7 +145,6 @@ def main(argv):
 
 	full_name = ["dTLB-load-misses", "iTLB-load-misses", "armv8_pmuv3/exc_taken/", "armv8_pmuv3/exc_taken/", "armv8_pmuv3/l2d_cache/", "L1-dcache-load-misses", "L1-dcache-loads", "L1-dcache-store-misses", "L1-dcache-stores"]
 	get_diff(testresult, testbase, full_name, verbose)
-
 
 if __name__ == "__main__":
 	main(sys.argv[1:])
