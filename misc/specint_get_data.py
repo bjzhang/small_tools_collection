@@ -11,9 +11,9 @@ import numpy
 def format_percentage(number):
 	number = number * 100
 	if number >= 0:
-		return " %.2f%%" % number
+		return " %5.2f%%" % number
 	else:
-		return "%.2f%%" % number
+		return "%5.2f%%" % number
 
 def specint_avg(paths, names):
 #	paths = ["/home/z00293696/works/source/testsuite/testresult/ilp32/20161022_1024_specint_LP64/ILP32_disabled"]
