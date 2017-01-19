@@ -153,12 +153,12 @@ def compile_kernel(host, user, path, commit, config_enable, config_disable="", d
 	if not dryrun:
 		ssh_wait_connection(host, user, dry_run, debug=True)
 
-		tools="/home/bamvor/works/source/small_tools_collection"
-		try:
-			cmd="cd " + tools + "; git pull"
-			ssh_transport(host, user, [cmd], dry_run=dry_run, silent=silent)
-		except subprocess.CalledProcessError:
-			print("Update tools failed when run the following cmd: " + cmd)
+#		tools="/home/bamvor/works/source/small_tools_collection"
+#		try:
+#			cmd="cd " + tools + "; git pull"
+#			ssh_transport(host, user, [cmd], dry_run=dry_run, silent=silent)
+#		except subprocess.CalledProcessError:
+#			print("Update tools failed when run the following cmd: " + cmd)
 
 		try:
 			cmd="cd " + path + "; git checkout -f " + commit
@@ -166,7 +166,7 @@ def compile_kernel(host, user, path, commit, config_enable, config_disable="", d
 		except subprocess.CalledProcessError:
 			print("Check out kernel source failed when run the following cmd: " + cmd)
 
-		cmd="PATH=$PATH:/home/bamvor/works/software/toolchain/gcc-linaro-6.2.1-2016.11-x86_64_aarch64-linux-gnu/gcc-linaro-6.2.1-2016.11-x86_64_aarch64-linux-gnu/bin; cd " + path + "; git am 0001-remove-mmc2-on-hikey-dts.patch; " + tools + "/build/kernel/build.sh " + path + " " + config_enable
+		cmd="PATH=$PATH:/home/bamvor/works/software/toolchain/gcc-linaro-6.2.1-2016.11-x86_64_aarch64-linux-gnu/gcc-linaro-6.2.1-2016.11-x86_64_aarch64-linux-gnu/bin:/home/z00293696/works/source/small_tools_collection/build/kernel:/home/z00293696/works/reference/small_tools_collection/build/kernel:/home/bamvor/works/source/small_tools_collection/build/kernel; cd " + path + "; git am 0001-remove-mmc2-on-hikey-dts.patch; echo $PATH; build.sh " + path + " " + config_enable
 		if config_disable:
 			cmd = cmd + " " + config_disable
 
