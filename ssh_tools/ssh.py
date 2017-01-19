@@ -255,6 +255,8 @@ def run_test(config, dryrun=False):
 	for commit in kernel["commits"]:
 		if server and "log_base" in server:
 			log_path = server["log_base"] + "/" + commit["commit"] + "_" + commit["name"]
+			if "log_base_with_time" in server and int(server["log_base_with_time"]) == 1:
+				log_path = log_path + "_" + datetime.datetime.now().strftime('%Y%m%d_%H%M')
 
 		#do not return if no kernel configure, we may run with the existing kernel in the machine.
 		if kernel and "path" in kernel:
