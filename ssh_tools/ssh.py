@@ -265,8 +265,10 @@ def run_test(config, dryrun=False):
 			compile_kernel(kernel["host"], kernel["user"], kernel["path"], commit["commit"], kernel["config_enable"], kernel["config_disable"], silent=True, dryrun=dryrun)
 			if test and "kernel_install" in kernel:
 				scp_s2s(kernel["host"], kernel["user"], test["host"], test["root"], image_path, kernel["kernel_install"], dryrun=dryrun)
-				scp_s2s(kernel["host"], kernel["user"], test["host"], test["root"], kernel["path"] + "/" + kernel["dtb_path"], kernel["dtb_install"], dryrun=dryrun)
-				scp_s2s(kernel["host"], kernel["user"], test["host"], test["root"], kernel["path"] + "/" + kernel["modules_path"], kernel["modules_install"], dryrun=dryrun)
+				if "dtb_path" in kernel:
+					scp_s2s(kernel["host"], kernel["user"], test["host"], test["root"], kernel["path"] + "/" + kernel["dtb_path"], kernel["dtb_install"], dryrun=dryrun)
+				if "modules_path" in kernel:
+					scp_s2s(kernel["host"], kernel["user"], test["host"], test["root"], kernel["path"] + "/" + kernel["modules_path"], kernel["modules_install"], dryrun=dryrun)
 				scp_s2s(kernel["host"], kernel["user"], server["host"], server["user"], image_path, log_path + "/" + commit["commit"] + "_" + commit["name"] + "_Image", dryrun=dryrun)
 				scp_s2s(kernel["host"], kernel["user"], server["host"], server["user"], config_path, log_path + "/" + commit["commit"] + "_" + commit["name"] + "_config", dryrun=dryrun)
 			else:
