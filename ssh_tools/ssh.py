@@ -144,11 +144,12 @@ def run_benchmark(host, normal_user, root_user, grubentry, total_count, test_use
 	dt = datetime.datetime.now()
 	print("test finish at " + str(dt))
 
-def compile_kernel(host, user, path, commit, config_enable, config_disable="", dry_run=False, silent=False, checkout_force=False, dryrun=False):
+def compile_kernel(host, user, path, commit, config_enable, config_disable="", config_module="", dry_run=False, silent=False, checkout_force=False, dryrun=False):
 	dt = datetime.datetime.now()
 	print("compile_kernel start at " + str(dt))
 	config_enable = config_enable.encode("utf-8")
 	config_disable = config_disable.encode("utf-8")
+	config_module = config_module.encode("utf-8")
 
 	if not dryrun:
 		ssh_wait_connection(host, user, dry_run, debug=True)
@@ -166,9 +167,12 @@ def compile_kernel(host, user, path, commit, config_enable, config_disable="", d
 		except subprocess.CalledProcessError:
 			print("Check out kernel source failed when run the following cmd: " + cmd)
 
-		cmd="PATH=$PATH:/home/bamvor/works/software/toolchain/gcc-linaro-6.2.1-2016.11-x86_64_aarch64-linux-gnu/gcc-linaro-6.2.1-2016.11-x86_64_aarch64-linux-gnu/bin:/home/z00293696/works/source/small_tools_collection/build/kernel:/home/z00293696/works/reference/small_tools_collection/build/kernel:/home/bamvor/works/source/small_tools_collection/build/kernel; cd " + path + "; git am 0001-remove-mmc2-on-hikey-dts.patch; echo $PATH; build.sh " + path + " " + config_enable
+		cmd="PATH=$PATH:/home/bamvor/works/software/toolchain/gcc-linaro-6.2.1-2016.11-x86_64_aarch64-linux-gnu/gcc-linaro-6.2.1-2016.11-x86_64_aarch64-linux-gnu/bin:/home/z00293696/works/source/small_tools_collection/build/kernel:/home/z00293696/works/reference/small_tools_collection/build/kernel:/home/bamvor/works/source/small_tools_collection/build/kernel; cd " + path + "; git am 0001-remove-mmc2-on-hikey-dts.patch; echo $PATH; build.sh " + path + " --enable " + config_enable
 		if config_disable:
-			cmd = cmd + " " + config_disable
+			cmd = cmd + " --disable " + config_disable
+
+		if config_module:
+			cmd = cmd + " --module " + config_module
 
 		ssh_transport(host, user, [cmd], dry_run=dry_run, silent=silent)
 
@@ -262,7 +266,22 @@ def run_test(config, dryrun=False):
 		if kernel and "path" in kernel:
 			image_path = kernel["path"] + "/arch/arm64/boot/Image"
 			config_path = kernel["path"] + "/.config"
-			compile_kernel(kernel["host"], kernel["user"], kernel["path"], commit["commit"], kernel["config_enable"], kernel["config_disable"], silent=True, dryrun=dryrun)
+                        if "config_enable" in kernel:
+                            enable = kernel["config_enable"]
+                        else:
+                            enable = ""
+
+                        if "config_disable" in kernel:
+                            disable = kernel["config_disable"]
+                        else:
+                            disable = ""
+
+                        if "config_module" in kernel:
+                            module = kernel["config_module"]
+                        else:
+                            module = ""
+
+			compile_kernel(kernel["host"], kernel["user"], kernel["path"], commit["commit"], enable, disable, module, silent=True, dryrun=dryrun)
 			if test and "kernel_install" in kernel:
 				scp_s2s(kernel["host"], kernel["user"], test["host"], test["root"], image_path, kernel["kernel_install"], dryrun=dryrun)
 				if "dtb_path" in kernel:
