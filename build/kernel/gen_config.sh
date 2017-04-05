@@ -53,6 +53,7 @@ done
 
 ENABLE=`echo ${ENABLE} | tr "," " "`
 DISABLE=`echo ${DISABLE} | tr "," " "`
+MODULE=`echo ${MODULE} | tr "," " "`
 TEMP=`mktemp --tmpdir`
 for e in $ENABLE; do
 	echo "CONFIG_$e=y" >>$TEMP
