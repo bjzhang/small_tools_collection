@@ -2,13 +2,28 @@ package main
 
 import (
     "bytes"
-    "image"
     "fmt"
+    "image"
 	"os/exec"
+	"strconv"
+
     "gocv.io/x/gocv"
 )
 
-func test_and_start_fighting() {
+func click(x, y int) bool {
+	cmd := exec.Command("adb", "shell", "input", "tap", strconv.Itoa(x), strconv.Itoa(y))
+	//fmt.Println("Running adb input tap and waiting for it to finish...")
+	err := cmd.Run()
+	if err != nil {
+		fmt.Println("Command finished with error: %v", err)
+		return false
+	}
+	return true
+}
+
+func test_and_start_fighting() bool {
+	var result bool
+
 	src := gocv.IMRead("dq6.png", gocv.IMReadUnchanged)
 	//ref: //<https://answers.unity.com/questions/1374912/how-to-crop-image-using-opencv.html>
 	//need template matching: rect := image.Rect(0, 1730, 1440, 2225)
@@ -21,71 +36,92 @@ func test_and_start_fighting() {
 	ret := bytes.Compare(dst_bytes, golden_bytes)
 //	fmt.Println("bytes compare result: %v", ret)
 	if ret != 0 {
-		fmt.Println("It is not fighting senario.")
-	} else {
-		cmd := exec.Command("adb", "shell", "input", "tap", "130", "1800")
-		fmt.Println("Running adb input tap and waiting for it to finish...")
-		err := cmd.Run()
-		if err != nil {
-			fmt.Println("Command finished with error: %v", err)
-			return
-		}
-		cmd = exec.Command("adb", "shell", "input", "tap", "130", "1800")
-		fmt.Println("Running adb input tap and waiting for it to finish...")
-		err = cmd.Run()
-		if err != nil {
-			fmt.Println("Command finished with error: %v", err)
-			return
-		}
-		cmd = exec.Command("adb", "shell", "input", "tap", "130", "1800")
-		fmt.Println("Running adb input tap and waiting for it to finish...")
-		err = cmd.Run()
-		if err != nil {
-			fmt.Println("Command finished with error: %v", err)
-			return
-		}
+		return false
 	}
+
+	fmt.Println("In fighting senario.")
+	result = click(130, 1800)
+	if !result {
+		return result
+	}
+	result = click(130, 1800)
+	if !result {
+		return result
+	}
+	result = click(130, 1800)
+	if !result {
+		return result
+	}
+	return true
 }
 
-func test_and_exit_fighting() {
+func test_and_check_fighting_result() bool {
+	var result bool
+
 	src := gocv.IMRead("dq6.png", gocv.IMReadUnchanged)
 	//ref: //<https://answers.unity.com/questions/1374912/how-to-crop-image-using-opencv.html>
     rect := image.Rect(0, 2150, 1440, 2200)
 	//Find this function in core.go in gocv
 	dst := src.Region(rect)
-	golden := gocv.IMRead("golden_exit_fighting.png", gocv.IMReadUnchanged)
+	golden := gocv.IMRead("golden_check_fighting_result.png", gocv.IMReadUnchanged)
 	dst_bytes := dst.ToBytes()
 	golden_bytes := golden.ToBytes()
 	ret := bytes.Compare(dst_bytes, golden_bytes)
-//	fmt.Println("bytes compare result: %v", ret)
+	//fmt.Println("bytes compare result: %v", ret)
 	if ret != 0 {
-		fmt.Println("It is not exit fighting senario.")
-	} else {
-		cmd := exec.Command("adb", "shell", "input", "tap", "750", "1200")
-		fmt.Println("Running adb input tap and waiting for it to finish...")
-		err := cmd.Run()
-		if err != nil {
-			fmt.Println("Command finished with error: %v", err)
-			return
-		}
-		cmd = exec.Command("adb", "shell", "input", "tap", "130", "1800")
-		fmt.Println("Running adb input tap and waiting for it to finish...")
-		err = cmd.Run()
-		if err != nil {
-			fmt.Println("Command finished with error: %v", err)
-			return
-		}
-		cmd = exec.Command("adb", "shell", "input", "tap", "130", "1800")
-		fmt.Println("Running adb input tap and waiting for it to finish...")
-		err = cmd.Run()
-		if err != nil {
-			fmt.Println("Command finished with error: %v", err)
-			return
-		}
+		return false
 	}
+	fmt.Println("In check fighting result senario.")
+	result = click(750, 1200)
+	if !result {
+		return result
+	}
+	return true
+}
+
+func test_and_walking() bool {
+	src := gocv.IMRead("dq6.png", gocv.IMReadUnchanged)
+	//ref: //<https://answers.unity.com/questions/1374912/how-to-crop-image-using-opencv.html>
+    rect := image.Rect(67, 1489, 214, 1601)
+	//Find this function in core.go in gocv
+	dst := src.Region(rect)
+    gocv.IMWrite("./dst.png", dst)
+	golden := gocv.IMRead("golden_main_menu.png", gocv.IMReadUnchanged)
+    gocv.IMWrite("./golden.png", golden)
+	cmd := exec.Command("diff", "dst.png", "golden.png")
+	//fmt.Println("Running diff and waiting for it to finish...")
+	err := cmd.Run()
+	if err != nil {
+		return false
+	}
+	fmt.Println("In non-fight senario.")
+	cmd = exec.Command("adb", "shell", "input", "swipe", "900", "2020", "900", "2020", "1000")
+	//fmt.Println("Running adb input tap and waiting for it to finish...")
+	err = cmd.Run()
+	if err != nil {
+		fmt.Println("Command finished with error: %v", err)
+		return false
+	}
+	cmd = exec.Command("adb", "shell", "input", "swipe", "1300", "2020", "1300", "2020", "1000")
+	//fmt.Println("Running adb input tap and waiting for it to finish...")
+	err = cmd.Run()
+	if err != nil {
+		fmt.Println("Command finished with error: %v", err)
+		return false
+	}
+	return true
+}
+
+func idle_click() {
+	_ = click(720, 1280)
+	fmt.Println("Do idle click")
 }
 
 func main() {
+
+	var result bool
+	var false_count int
+
     for {
 		cmd := exec.Command("/usr/local/bin/adb", "shell", "screencap", "-p", "/storage/sdcard0/bamvor/dq6.png")
 //		fmt.Println("Running screen capture command and waiting for it to finish...")
@@ -108,7 +144,15 @@ func main() {
 			fmt.Println("Command finished with error: %v", err)
 			return
 		}
-		test_and_start_fighting()
-		test_and_exit_fighting()
+		result = test_and_start_fighting()
+		result = result || test_and_check_fighting_result()
+		result = result || test_and_walking()
+		if !result {
+			false_count += 1
+//			fmt.Println("false_count %v", false_count)
+		}
+		if false_count % 30 == 0 {
+			idle_click()
+		}
     }
 }
