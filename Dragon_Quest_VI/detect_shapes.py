@@ -1,15 +1,23 @@
+#!/usr/bin/env python
 # reference from:
 # https://www.pyimagesearch.com/2016/02/08/opencv-shape-detection/
 # USAGE
 # python detect_shapes.py --image shapes_and_colors.png
 
 # import the necessary packages
-from pyimagesearch.shapedetector import ShapeDetector
 import argparse
 import imutils
 import cv2
 import numpy
 import math
+
+def detectSharp(c):
+    peri = cv2.arcLength(c, True)
+    approx = cv2.approxPolyDP(c, 0.04 * peri, True)
+    if len(approx) == 4:
+        return "rectangle"
+    else:
+        return "unknown"
 
 # construct the argument parse and parse the arguments
 ap = argparse.ArgumentParser()
@@ -35,11 +43,10 @@ cv2.imwrite("thresh.png", thresh)
 cnts = cv2.findContours(thresh.copy(), cv2.RETR_EXTERNAL,
 	cv2.CHAIN_APPROX_SIMPLE)
 cnts = cnts[0] if imutils.is_cv2() else cnts[1]
-sd = ShapeDetector()
 
 # loop over the contours
 for c in cnts:
-	shape = sd.detect(c)
+	shape = detectSharp(c)
         if shape == "rectangle":
             # multiply the contour (x, y)-coordinates by the resize ratio,
             # then draw the contours and the name of the shape on the image
@@ -68,6 +75,6 @@ for c in cnts:
                 count += 1
 
             proportion = math.fabs(max_point[0][0] - min_point[0][0]) * math.fabs(max_point[0][1] - min_point[0][1])
-            if proportion > 100000:
-                print(proportion)
-
+            if proportion > 200000:
+                print(str(min_point[0][0]) + ", " +  str(min_point[0][1])
+                        + ", " + str(max_point[0][0]) + ", " + str(max_point[0][1]))
