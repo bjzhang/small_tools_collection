@@ -1,6 +1,17 @@
 #!/usr/bin/env python3
+""" This script insert pictures(globs) to markdown files
+What I learn when writing this script:
+1.  abspath and relpath in os.path modules
+2.  using sub to replace for regular expression: ref: <https://docs.python.org/3/howto/regex.html>
+3.  misc
+    1.  using quotation mark to protect the glob symbol(*) in command.
+    2.  open file in append mode.
+    3.  try to follow the [Google Style Python Docstrings](http://sphinxcontrib-napoleon.readthedocs.io/en/latest/example_google.html)
 
-#<https://docs.python.org/3/howto/regex.html>
+TODO:
+1.  get correct basedir on Linux system by using the current directory by
+default. User could input basedir in argument.
+"""
 
 import glob
 import magic
@@ -9,6 +20,14 @@ import re
 import sys
 
 def insert_images_to_markdown(images, markdown, basedir):
+    """Insert images to markdown file
+
+    Args:
+        param1 (str): The image name or glob of images
+        param2 (str): The name of destination markdown file
+        param3 (str): The base directory of images. This varible is needed to
+        get the correct url of images
+    """
 
     images = glob.glob(images)
     images.sort(key=os.path.getctime)
@@ -41,3 +60,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
