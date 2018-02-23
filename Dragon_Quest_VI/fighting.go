@@ -1,11 +1,14 @@
 package main
 
 import (
-    "bytes"
-    "fmt"
-    "image"
+	"bufio"
+	"bytes"
+	"fmt"
+	"image"
+	"log"
 	"os/exec"
 	"strconv"
+	"strings"
 
     "gocv.io/x/gocv"
 )
@@ -19,6 +22,30 @@ func click(x, y int) bool {
 		return false
 	}
 	return true
+}
+
+// rectangle := try_to_get_main_dialog()
+// crop(rectangle)
+func try_to_get_main_dialog() ([]int) {
+	cmd := exec.Command("./detect_shapes.py", "--image", "dq6.png")
+	stdout, err := cmd.StdoutPipe()
+	if err != nil {
+		log.Fatal(err)
+	}
+	if err := cmd.Start(); err != nil {
+		log.Fatal(err)
+	}
+	reader := bufio.NewReader(stdout)
+	line, _, _ := reader.ReadLine()
+	if err := cmd.Wait(); err != nil {
+		log.Fatal(err)
+	}
+	strs := strings.Split(string(line), ", ")
+	array := make([]int, 4)
+	for i := range array {
+		array[i], _ = strconv.Atoi(strs[i])
+	}
+	return array
 }
 
 func test_and_start_fighting() bool {
@@ -115,6 +142,14 @@ func test_and_walking() bool {
 func idle_click() {
 	_ = click(720, 1280)
 	fmt.Println("Do idle click")
+}
+
+func crop(rectangle []int) {
+    rect := image.Rect(rectangle[0], rectangle[1], rectangle[2],  rectangle[3])
+    src := gocv.IMRead("dq6.png", gocv.IMReadUnchanged)
+    //Find this function in core.go in gocv
+    dst := src.Region(rect)
+    gocv.IMWrite("./result.png", dst)
 }
 
 func main() {
