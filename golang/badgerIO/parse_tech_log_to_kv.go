@@ -10,6 +10,8 @@ import (
     "log"
     "regexp"
     "strings"
+
+    kvwrapper "./kvwrapper"
 )
 
 func parse_markdown(markdown string) {
@@ -34,10 +36,10 @@ func parse_markdown(markdown string) {
         }
         if (matched) {
             fmt.Println("end get value. output previous key-value:")
-            value += prevLine + "\n"
             fmt.Println("key: " + key)
             fmt.Println("value: ")
             fmt.Println(value)
+            kvwrapper.WriteToBadgerIO(key, value)
             key = ""
             value = ""
             fmt.Println("Found Key")
@@ -59,7 +61,9 @@ func parse_markdown(markdown string) {
     fmt.Println("EOF. output previous key-value:")
     value += prevLine + "\n"
     fmt.Println("key: " + key)
-    fmt.Println("value: " + value)
+    fmt.Println("value: ")
+    fmt.Println(value)
+    kvwrapper.WriteToBadgerIO(key, value)
     if err := scanner.Err(); err != nil {
         log.Fatal(err)
     }
