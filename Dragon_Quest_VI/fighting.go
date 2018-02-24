@@ -152,6 +152,14 @@ func crop(rectangle []int) {
     gocv.IMWrite("./result.png", dst)
 }
 
+func ocr_main_dialog() {
+    src := gocv.IMRead("dq6.png", gocv.IMReadUnchanged)
+	rectangle := try_to_get_main_dialog()
+    rect := image.Rect(rectangle[0], rectangle[1], rectangle[2],  rectangle[3])
+    mainDialog := src.Region(rect)
+    gocv.IMWrite("./crop.png", mainDialog)
+}
+
 func main() {
 
 	var result bool
@@ -179,6 +187,8 @@ func main() {
 			fmt.Println("Command finished with error: %v", err)
 			return
 		}
+		ocr_main_dialog()
+		return
 		result = test_and_start_fighting()
 		result = result || test_and_check_fighting_result()
 		result = result || test_and_walking()
