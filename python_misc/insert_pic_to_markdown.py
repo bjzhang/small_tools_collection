@@ -52,6 +52,17 @@ def main():
 
     images = sys.argv[1]
     markdown = sys.argv[2]
+    file_extension = re.sub(r'^.+(\.(.+)?)$', r'\2', markdown)
+    if file_extension == markdown:
+        print("Error: extersion of markdown file<" + markdown + "> is not found")
+        return
+    else:
+        print("file_extension: " + file_extension)
+        if file_extension != "md" and file_extension != "markdown":
+            print("Error: extersion of markdown file<" + markdown + ": " +
+                    file_extension + "> should be md or markdown")
+            return
+
     print("images: " + images)
     print("markdown: " + markdown)
     print("WARNING: fix basedir in non-os x system!")
