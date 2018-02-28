@@ -19,22 +19,46 @@ import os
 import re
 import sys
 
-def insert_images_to_markdown(images, markdown, basedir):
+def remove_duplicated_images(images_glob, markdown):
+    """Remove duplicated images in existing markdown file
+    Args:
+        param1 (str): The image name or the glob of image name.
+        param2 (str): The name of destination markdown file
+    """
+    images =glob.glob(images_glob)
+    images.sort(key=os.path.getctime)
+    clean_images = []
+    with open(markdown, "r") as file:
+        file_content = file.read()
+        for image in images:
+            image_basename = os.path.basename(image)
+            print(image_basename)
+            result = re.search(image_basename, file_content)
+            if result:
+                print("duplicated " + image)
+            else:
+                # call image.remove() here will remote the item and cause
+                # the items of list move ahead. If I remove in the current
+                # loop, then the for statement will "skip" item after the
+                # removed item.
+                clean_images.append(image)
+
+    return clean_images
+
+def insert_images_to_markdown(images_array, markdown, basedir):
     """Insert images to markdown file
 
     Args:
-        param1 (str): The image name or glob of images
+        param1 (str): The array of image name
         param2 (str): The name of destination markdown file
         param3 (str): The base directory of images. This varible is needed to
         get the correct url of images
     """
 
-    images = glob.glob(images)
-    images.sort(key=os.path.getctime)
     file_extension_pattern = re.compile('\.[^.]*$')
     split_pattern = re.compile('_')
     with open(markdown, 'a') as f:
-        for image in images:
+        for image in images_array:
             image = os.path.abspath(image)
             image_url = "{{site.url}}/" + os.path.relpath(image, start=basedir)
             image_basename = os.path.basename(image)
@@ -67,7 +91,11 @@ def main():
     print("markdown: " + markdown)
     print("WARNING: fix basedir in non-os x system!")
     basedir = "/Users/bamvor/works/source/bjzhang.github.io"
-    insert_images_to_markdown(images, markdown, basedir)
+    new_images = remove_duplicated_images(images, markdown)
+    if new_images and len(new_images) != 0:
+        insert_images_to_markdown(new_images, markdown, basedir)
+    else:
+        print("There is no new images")
 
 if __name__ == "__main__":
     main()
