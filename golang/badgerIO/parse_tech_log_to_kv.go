@@ -14,7 +14,7 @@ import (
     kvwrapper "./kvwrapper"
 )
 
-func parse_markdown(markdown string) {
+func parse_markdown(markdown string, badger string) {
 
     file, err := os.Open(markdown)
     if err != nil {
@@ -39,7 +39,7 @@ func parse_markdown(markdown string) {
             fmt.Println("key: " + key)
             fmt.Println("value: ")
             fmt.Println(value)
-            kvwrapper.WriteToBadgerIO(key, value)
+            kvwrapper.WriteKV(key, value)
             key = ""
             value = ""
             fmt.Println("Found Key")
@@ -63,7 +63,7 @@ func parse_markdown(markdown string) {
     fmt.Println("key: " + key)
     fmt.Println("value: ")
     fmt.Println(value)
-    kvwrapper.WriteToBadgerIO(key, value)
+    kvwrapper.WriteKV(key, value)
     if err := scanner.Err(); err != nil {
         log.Fatal(err)
     }
@@ -84,6 +84,7 @@ func main() {
     if (!fi.Mode().IsRegular()) {
         fmt.Println("file<" + markdown + "> is not regular file")
     }
-    parse_markdown(markdown)
+    badger := os.Args[2]
+    parse_markdown(markdown, badger)
 }
 
