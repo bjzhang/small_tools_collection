@@ -6,6 +6,7 @@ import (
     "gocv.io/x/gocv"
     "image"
     "log"
+    "os"
     "strconv"
 )
 
@@ -18,7 +19,7 @@ import (
 //}
 
 func main() {
-    mat := gocv.IMRead("./crop.png", gocv.IMReadUnchanged)
+    mat := gocv.IMRead(os.Args[1], gocv.IMReadUnchanged)
     if mat.Empty() {
         log.Fatal("Invalid file name")
     }
