@@ -44,6 +44,21 @@ cnts = cv2.findContours(thresh.copy(), cv2.RETR_EXTERNAL,
 	cv2.CHAIN_APPROX_SIMPLE)
 cnts = cnts[0] if imutils.is_cv2() else cnts[1]
 
+linesP = cv2.HoughLinesP(thresh, 1, numpy.pi / 180, 50, None, 50, 10)
+
+if linesP is not None:
+    for i in range(0, len(linesP)):
+        l = linesP[i][0]
+#        print ('distance: ' + str(distance))
+        l = l.astype("float")
+        l *= ratio
+        l = l.astype("int")
+        a = numpy.array([l[0], l[1]])
+        b = numpy.array([l[2], l[3]])
+        distance = numpy.linalg.norm(a - b)
+        if distance > 120:
+            cv2.line(image, (l[0], l[1]), (l[2], l[3]), (0,0,0), 15, cv2.LINE_AA)
+
 # loop over the contours
 for c in cnts:
 	shape = detectSharp(c)
@@ -76,5 +91,6 @@ for c in cnts:
 
             proportion = math.fabs(max_point[0][0] - min_point[0][0]) * math.fabs(max_point[0][1] - min_point[0][1])
             if proportion > 200000:
-                print(str(min_point[0][0]) + ", " +  str(min_point[0][1])
-                        + ", " + str(max_point[0][0]) + ", " + str(max_point[0][1]))
+                print(str(min_point[0][0]) + ", " +  str(min_point[0][1]) + ", " + str(max_point[0][0]) + ", " + str(max_point[0][1]))
+                crop = image[min_point[0][1]: max_point[0][1], min_point[0][0]: max_point[0][0]]
+                cv2.imwrite("crop_" + str(min_point[0][1]) + "_" + str(max_point[0][0]) + ".png" , crop)
