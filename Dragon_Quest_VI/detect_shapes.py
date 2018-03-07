@@ -19,6 +19,19 @@ def detectSharp(c):
     else:
         return "unknown"
 
+def delete_line(image):
+    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    thresh = cv2.threshold(gray, 150, 255, cv2.THRESH_BINARY)[1]
+    linesP = cv2.HoughLinesP(thresh, 1, numpy.pi / 180, 50, None, 50, 10)
+    if linesP is not None:
+        for i in range(0, len(linesP)):
+            l = linesP[i][0]
+            a = numpy.array([l[0], l[1]])
+            b = numpy.array([l[2], l[3]])
+            distance = numpy.linalg.norm(a - b)
+            if distance > 120:
+                cv2.line(image, (l[0], l[1]), (l[2], l[3]), (0,0,0), 15, cv2.LINE_AA)
+
 # construct the argument parse and parse the arguments
 ap = argparse.ArgumentParser()
 ap.add_argument("-i", "--image", required=True,
@@ -28,6 +41,7 @@ args = vars(ap.parse_args())
 # load the image and resize it to a smaller factor so that
 # the shapes can be approximated better
 image = cv2.imread(args["image"])
+
 resized = imutils.resize(image, width=300)
 ratio = image.shape[0] / float(resized.shape[0])
 
@@ -38,26 +52,13 @@ blurred = cv2.GaussianBlur(gray, (5, 5), 0)
 thresh = cv2.threshold(gray, 150, 255, cv2.THRESH_BINARY)[1]
 cv2.imwrite("thresh.png", thresh)
 
+delete_line(image)
+
 # find contours in the thresholded image and initialize the
 # shape detector
 cnts = cv2.findContours(thresh.copy(), cv2.RETR_EXTERNAL,
 	cv2.CHAIN_APPROX_SIMPLE)
 cnts = cnts[0] if imutils.is_cv2() else cnts[1]
-
-linesP = cv2.HoughLinesP(thresh, 1, numpy.pi / 180, 50, None, 50, 10)
-
-if linesP is not None:
-    for i in range(0, len(linesP)):
-        l = linesP[i][0]
-#        print ('distance: ' + str(distance))
-        l = l.astype("float")
-        l *= ratio
-        l = l.astype("int")
-        a = numpy.array([l[0], l[1]])
-        b = numpy.array([l[2], l[3]])
-        distance = numpy.linalg.norm(a - b)
-        if distance > 120:
-            cv2.line(image, (l[0], l[1]), (l[2], l[3]), (0,0,0), 15, cv2.LINE_AA)
 
 # loop over the contours
 for c in cnts:

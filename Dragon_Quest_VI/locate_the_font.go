@@ -18,6 +18,56 @@ import (
 //    gocv.IMWrite("./test.png", mat)
 //}
 
+func proj(binary gocv.Mat, rootName string) {
+    projection := make([]int, binary.Cols())
+    fmt.Printf("Row<%v>, Col<%v>\n", binary.Rows(), binary.Cols())
+    for i := 0; i < binary.Rows(); i++ {
+        for j := 0; j < binary.Cols(); j++ {
+            point := binary.GetUCharAt(i, j)
+            if point == -1 {
+                projection[j]++
+            }
+        }
+    }
+    projection_mat := gocv.NewMatWithSize(binary.Rows(), binary.Cols(), gocv.MatTypeCV16S)
+    for i := 0; i < binary.Cols(); i++ {
+        for j := 0; j < projection[i]; j++ {
+            projection_mat.SetShortAt(j, i, 255)
+        }
+    }
+    gocv.IMWrite("./projection_mat_" + rootName + ".png", projection_mat)
+    fontMin := 30
+    skipMax := fontMin
+    for i := 0; i < binary.Cols(); i++ {
+    //for i := 724; i < 892; i++ {
+        start := i
+        j := i
+        skip := 0
+        projection_count := 0
+        for ; j < binary.Cols(); j++ {
+        //for ; j < 892; j++ {
+            if projection[j] > 0 {
+                projection_count++
+                skip = 0
+            } else if projection[j] == 0 && projection_count != 0 && skip < skipMax {
+                skip++
+            } else {
+                break
+            }
+        }
+        end := j
+        if projection_count > fontMin {
+            i = end
+            fmt.Printf("%v, %v, %v, %v\n", start, 0, end, binary.Rows())
+            rect := image.Rect(start, 0, end, binary.Rows())
+            //Find this function in core.go in gocv
+            dst := binary.Region(rect)
+            filename := rootName + "_result_" + strconv.Itoa(start) + "_" + strconv.Itoa(end) + ".png"
+            gocv.IMWrite(filename, dst)
+        }
+    }
+}
+
 func main() {
     mat := gocv.IMRead(os.Args[1], gocv.IMReadUnchanged)
     if mat.Empty() {
@@ -54,7 +104,7 @@ func main() {
 
     fontMinHeight := 30
     projectionMin := 10
-    projectionMargin := fontMinHeight
+    projectionMargin := fontMinHeight / 2
     skipMax := 10
     for i := 0; i < mat.Rows() - fontMinHeight; i++ {
         cont := 0
@@ -117,6 +167,7 @@ func main() {
             //Find this function in core.go in gocv
             dst := binary.Region(rect)
             filename := "result_" + strconv.Itoa(start) + "_" + strconv.Itoa(end) + ".png"
+            proj(dst, filename)
             gocv.IMWrite(filename, dst)
         }
     }
