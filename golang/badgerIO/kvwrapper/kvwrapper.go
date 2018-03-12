@@ -6,7 +6,7 @@ import (
     "github.com/dgraph-io/badger"
 )
 
-type keyvalueStore struct {
+type KeyvalueStore struct {
     db *badger.DB
 }
 
@@ -24,17 +24,24 @@ func WriteToBadgerIO(db *badger.DB, key string, value string) {
     txn.Commit(nil)
 }
 
-func WriteKV(key string, value string) {
+func (kv *KeyvalueStore)OpenKV(dbPath string) {
 	//ref: <https://github.com/dgraph-io/badger#opening-a-database>
 	// Open the Badger database located in the /tmp/badger directory.
 	// It will be created if it doesn't exist.
 	opts := badger.DefaultOptions
-	opts.Dir = "/tmp/badger"
-	opts.ValueDir = "/tmp/badger"
+	opts.Dir = dbPath
+	opts.ValueDir = dbPath
 	db, err := badger.Open(opts)
 	if err != nil {
 		log.Fatal(err)
 	}
-	defer db.Close()
-    WriteToBadgerIO(db, key, value)
+    kv.db = db
+}
+
+func (kv *KeyvalueStore)CloseKV() {
+	kv.db.Close()
+}
+
+func (kv *KeyvalueStore)WriteKV(key string, value string) {
+    WriteToBadgerIO(kv.db, key, value)
 }

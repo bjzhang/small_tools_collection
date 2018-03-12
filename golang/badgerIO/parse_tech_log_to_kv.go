@@ -14,6 +14,8 @@ import (
     kvwrapper "./kvwrapper"
 )
 
+var kv kvwrapper.KeyvalueStore
+
 func parse_markdown(markdown string, badger string) {
 
     file, err := os.Open(markdown)
@@ -28,6 +30,9 @@ func parse_markdown(markdown string, badger string) {
     state = "unknown"
     var key string
     var value string
+
+    kv.OpenKV(badger)
+    defer kv.CloseKV()
     for scanner.Scan() {
         line := scanner.Text()
         matched, err := regexp.MatchString("^=+", line)
@@ -39,7 +44,7 @@ func parse_markdown(markdown string, badger string) {
             fmt.Println("key: " + key)
             fmt.Println("value: ")
             fmt.Println(value)
-            kvwrapper.WriteKV(key, value)
+            kv.WriteKV(key, value)
             key = ""
             value = ""
             fmt.Println("Found Key")
@@ -63,7 +68,7 @@ func parse_markdown(markdown string, badger string) {
     fmt.Println("key: " + key)
     fmt.Println("value: ")
     fmt.Println(value)
-    kvwrapper.WriteKV(key, value)
+    kv.WriteKV(key, value)
     if err := scanner.Err(); err != nil {
         log.Fatal(err)
     }
