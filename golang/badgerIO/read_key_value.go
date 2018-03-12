@@ -4,6 +4,7 @@ package main
 import (
     "fmt"
 	"log"
+    "os"
 
     "github.com/dgraph-io/badger"
 )
@@ -14,8 +15,11 @@ func main () {
     //<https://github.com/dgraph-io/badger#iterating-over-keys>
 	// Open the Badger database located in the /tmp/badger directory.
 	// It will be created if it doesn't exist.
+    if (len(os.Args) < 2) {
+        return
+    }
 	opts := badger.DefaultOptions
-    dbPath := "badger"
+    dbPath := os.Args[1]
 	opts.Dir = dbPath
 	opts.ValueDir = dbPath
 	db, err := badger.Open(opts)

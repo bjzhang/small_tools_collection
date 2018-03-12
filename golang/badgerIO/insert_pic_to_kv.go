@@ -5,6 +5,7 @@ import (
     "encoding/base64"
     "fmt"
     "log"
+    "math/rand"
     "os"
     "path"
 
@@ -36,7 +37,7 @@ func insert_pic_to_kv(kv kvwrapper.KeyvalueStore, picture string) {
 
     imageBase64Str := base64.StdEncoding.EncodeToString(buffer)
 
-    key := "images_" + path.Base(picture)
+    key := "images_" + string(rand.Int31n(1000)) + "_" + path.Base(picture)
     fmt.Println("key: " + key)
     kv.WriteKV(key, imageBase64Str)
 }
@@ -48,8 +49,11 @@ func main() {
     var kv kvwrapper.KeyvalueStore
     kv.OpenKV(os.Args[1])
     defer kv.CloseKV()
-    for i := 2; i < len(os.Args); i++ {
-        fmt.Println("insert picture: ", os.Args[i])
-        insert_pic_to_kv(kv, os.Args[i])
+    kv.SetCompact(true)
+    for true {
+        for i := 2; i < len(os.Args); i++ {
+            fmt.Println("insert picture: ", os.Args[i])
+            insert_pic_to_kv(kv, os.Args[i])
+        }
     }
 }

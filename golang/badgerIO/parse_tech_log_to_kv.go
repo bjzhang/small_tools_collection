@@ -8,15 +8,14 @@ import (
     "fmt"
     "os"
     "log"
+    "math/rand"
     "regexp"
     "strings"
 
     kvwrapper "./kvwrapper"
 )
 
-var kv kvwrapper.KeyvalueStore
-
-func parse_markdown(markdown string, badger string) {
+func parse_markdown(markdown string, kv kvwrapper.KeyvalueStore) {
 
     file, err := os.Open(markdown)
     if err != nil {
@@ -31,8 +30,6 @@ func parse_markdown(markdown string, badger string) {
     var key string
     var value string
 
-    kv.OpenKV(badger)
-    defer kv.CloseKV()
     for scanner.Scan() {
         line := scanner.Text()
         matched, err := regexp.MatchString("^=+", line)
@@ -44,7 +41,7 @@ func parse_markdown(markdown string, badger string) {
             fmt.Println("key: " + key)
             fmt.Println("value: ")
             fmt.Println(value)
-            kv.WriteKV(key, value)
+            kv.WriteKV(string(rand.Int31n(1000)) + key, value)
             key = ""
             value = ""
             fmt.Println("Found Key")
@@ -68,7 +65,7 @@ func parse_markdown(markdown string, badger string) {
     fmt.Println("key: " + key)
     fmt.Println("value: ")
     fmt.Println(value)
-    kv.WriteKV(key, value)
+    kv.WriteKV(string(rand.Int31n(1000)) + key, value)
     if err := scanner.Err(); err != nil {
         log.Fatal(err)
     }
@@ -90,6 +87,13 @@ func main() {
         fmt.Println("file<" + markdown + "> is not regular file")
     }
     badger := os.Args[2]
-    parse_markdown(markdown, badger)
+
+    var kv kvwrapper.KeyvalueStore
+    kv.OpenKV(badger)
+    defer kv.CloseKV()
+    kv.SetCompact(true)
+    for true {
+        parse_markdown(markdown, kv)
+    }
 }
 

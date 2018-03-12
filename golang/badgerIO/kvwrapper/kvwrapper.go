@@ -45,3 +45,7 @@ func (kv *KeyvalueStore)CloseKV() {
 func (kv *KeyvalueStore)WriteKV(key string, value string) {
     WriteToBadgerIO(kv.db, key, value)
 }
+
+func (kv *KeyvalueStore)SetCompact(compact bool) {
+    badger.StopCompact = compact
+}
