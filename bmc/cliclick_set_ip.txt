@@ -1,5 +1,7 @@
 c:767,-507
 c:767,-507
+kp:enter
+kp:enter
 t:cd /binaries
 kp:enter
 t:tar zxf storedeployer_v1.4.0.tar.gz

@@ -1,0 +1,27 @@
+c:767,-507
+c:767,-507
+kp:enter
+kp:enter
+t:cd /binaries/journeymidnight-storedeployer-237d381b371e9e32a3ff4940958a200d8e6cd4f4
+kp:enter
+t:sed -i "s/\(^[\ \t]*SetNtpServer.*$\)/#\1/g" fabfile.py
+kp:enter
+t:sed -i "s/\(^[\ \t]*\)\"monitors\".*$/\1\"monitors\": \[\"192.168.0.144\", \"192.168.0.145\", \"192.168.0.146\"\],/g" config.json
+kp:enter
+t:sed -i "s/\(^[\ \t]*\)\"osdnodes\".*$/\1\"osdnodes\": \[\"192.168.0.144\", \"192.168.0.145\", \"192.168.0.146\"\],/g" config.json
+kp:enter
+t:sed -i "s/\(^[\ \t]*\)\"ntpserverip\".*$/\1\"ntpserverip\": \"192.168.0.143\",/g" config.json
+kp:enter
+t:sed -i "s/\(^[\ \t]*\)\"vip\".*$/\1\"vip\": \"192.168.0.143\",/g" config.json
+kp:enter
+t:sed -i "s/\(^[\ \t]*\)\"vip_nic\".*$/\1\"vip_nic\": \"ens5f1\",/g" config.json
+kp:enter
+t:sed -i "s/\(^[\ \t]*\)\"disks\".*$/\1\"disks\": \[\"/dev/sda\", \"/dev/sdb\", \"/dev/sdc\"\],/g" config.json
+kp:enter
+t:sed -i "s/\(^[\ \t]*\)\"extendfs\".*$/\1\"extendfs\": \"/dev/sde\",/g" config.json
+kp:enter
+t:cat config.json
+kp:enter
+w:10000
+t:python fabfile.py
+kp:enter

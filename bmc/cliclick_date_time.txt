@@ -1,0 +1,8 @@
+c:767,-507
+c:767,-507
+kp:enter
+kp:enter
+t:date -s date_time
+kp:enter
+t:date
+kp:enter
