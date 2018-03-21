@@ -1,0 +1,23 @@
+c:767,-507
+c:767,-507
+t:cd /binaries
+kp:enter
+t:tar zxf storedeployer_v1.4.0.tar.gz
+kp:enter
+t:cd journeymidnight-storedeployer-237d381b371e9e32a3ff4940958a200d8e6cd4f4
+kp:enter
+t:cd resoures
+kp:enter
+t:sed -i "s/^CFG=.*$/CFG=ifcfg-dummy;mv ifcfg-ens802f0 ifcfg-dummy/g" set_ip.sh
+kp:enter
+t:bash ./set_ip.sh ip_addr ip_gateway
+kp:enter
+w:5000
+t:augtool -s set /files/etc/sysconfig/network-scripts/ifcfg-dummy/DEVICE dummy
+kp:enter
+w:1000
+t:service network restart
+kp:enter
+w:2000
+t:ip addr
+kp:enter
