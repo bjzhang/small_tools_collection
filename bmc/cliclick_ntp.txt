@@ -1,0 +1,22 @@
+c:767,-507
+c:767,-507
+kp:enter
+kp:enter
+t:systemctl stop ntpd
+kp:enter
+t:sed -ibak "/^server /d" /etc/ntp.conf
+kp:enter
+t:echo server 192.168.0.1 iburst >> /etc/ntp.conf
+kp:enter
+t:grep -w server /etc/ntp.conf
+kp:enter
+t:ntpdate 192.168.0.1
+kp:enter
+t:echo wait for 10 seconds
+kp:enter
+w:10000
+t:systemctl start ntpd
+kp:enter
+t:while true; do ntpstat; ntpstat | grep -w synchronised && break || sleep 1; done
+kp:enter
+
