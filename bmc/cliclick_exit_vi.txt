@@ -1,0 +1,6 @@
+c:300,-100
+kp:enter
+kp:enter
+t::wq
+kp:enter
+

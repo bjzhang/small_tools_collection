@@ -1,0 +1,9 @@
+c:250,-100
+c:250,-100
+kp:enter
+kp:enter
+t:echo SUBSYSTEM==\"net\", ACTION==\"add\", KERNELS==\"0000:01:00.0\", NAME=\"lan0\" >> /etc/udev/rules.d/70-persistent*
+kp:enter
+t:cat /etc/udev/rules.d/70-persistent*
+kp:enter
+
