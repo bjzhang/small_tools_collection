@@ -223,7 +223,6 @@ build(){
 		sudo ./prepare.sh $@
 	else
 		echo "INFO: there is no extra prepare script. run build immediately"
-		exit
 	fi
 
 	echo "Cleaning up the previous build"
