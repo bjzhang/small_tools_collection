@@ -1,5 +1,7 @@
 c:767,-507
 c:767,-507
+kp:enter
+kp:enter
 t:cd /binaries
 kp:enter
 t:tar zxf storedeployer_v1.4.0.tar.gz
@@ -8,12 +10,12 @@ t:cd journeymidnight-storedeployer-237d381b371e9e32a3ff4940958a200d8e6cd4f4
 kp:enter
 t:cd resoures
 kp:enter
-t:sed -i "s/^CFG=.*$/CFG=ifcfg-ens5f1;mv ifcfg-ens802f0 ifcfg-ens5f1/g" set_ip.sh
+t:sed -i "s/^CFG=.*$/CFG=ifcfg-lan0;mv ifcfg-ens802f0 ifcfg-lan0/g" set_ip.sh
 kp:enter
-t:bash ./set_ip.sh 192.168.0.146 192.168.0.1
+t:bash ./set_ip.sh 192.168.0.57 192.168.0.6
 kp:enter
 w:5000
-t:augtool -s set /files/etc/sysconfig/network-scripts/ifcfg-ens5f1/DEVICE ens5f1
+t:augtool -s set /files/etc/sysconfig/network-scripts/ifcfg-lan0/DEVICE lan0
 kp:enter
 w:1000
 t:service network restart
