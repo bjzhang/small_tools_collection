@@ -25,7 +25,7 @@ def convert_abs_path_to_url(markdown, basedir):
         basedir += '/'
 
     print(basedir)
-    picture_pattern = re.compile('^<' + basedir + '(.*((jpg)|(jpeg)|(png)))>$')
+    picture_pattern = re.compile('^<' + basedir + '(.*((jpg)|(jpeg)|(png)|(gif)|(mp4)))>$')
     file_extension_pattern = re.compile('\.[^.]*$')
     split_pattern = re.compile('_')
     file_new = markdown + ".new"
