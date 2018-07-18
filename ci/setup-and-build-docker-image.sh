@@ -13,6 +13,9 @@ echo y | sudo apt-get install docker-ce
 echo y | sudo apt-get install qemu-user-static
 sudo docker run --rm --privileged multiarch/qemu-user-static:register --reset
 
+# Install docker-compse
+echo y | sudo apt-get install docker-compose
+
 # Install go
 wget https://dl.google.com/go/go1.10.3.linux-amd64.tar.gz
 tar zxf go1.10.3.linux-amd64.tar.gz
