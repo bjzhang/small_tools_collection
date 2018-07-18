@@ -3,6 +3,7 @@ version: '2'
 services:
   drone-server:
     image: drone/drone:latest
+    privileged: true
     ports:
       - 8000:8000
       - 9000
