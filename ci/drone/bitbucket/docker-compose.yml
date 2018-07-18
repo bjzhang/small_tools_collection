@@ -12,7 +12,7 @@ services:
     environment:
       - DRONE_ADMIN=bjzhang
       - DRONE_OPEN=true
-      - DRONE_HOST=http://35.190.225.20:8000
+      - DRONE_HOST=http://104.198.90.135:8000
       - DRONE_BITBUCKET=true
       - DRONE_BITBUCKET_CLIENT=RaUdsjYCSJCBMz3s5m
       - DRONE_BITBUCKET_SECRET=SjMJXuaDAm5RKscs3QXy49yagTAPqvKu
