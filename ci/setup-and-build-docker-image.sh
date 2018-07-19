@@ -1,5 +1,7 @@
 
-source ./init.sh
+# Install qemu-user-static
+sudo apt-get install -y qemu-user-static
+sudo docker run --rm --privileged multiarch/qemu-user-static:register --reset
 
 # Download source code
 echo "TODO switch to our repo. the Dockerfile in official repo need to patched"
