@@ -1,0 +1,11 @@
+[Unit]
+Description=go-shadowsocks2-AEAD_CHACHA20_POLY1305
+Wants=network.target
+After=network.target
+
+[Service]
+ExecStart=/home/bamvor/go/bin/go-shadowsocks2 -s ss://AEAD_CHACHA20_POLY1305:PASSWD@IP:PORT -verbose
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
