@@ -23,7 +23,9 @@ interruptible_sleep()
 
 sig_int_triggerd=0
 trap sig_int_handle SIGINT
+
 MSG="$1"
+echo $MSG
 TIME_REMAIN_UNIT=300
 date
 for i in `seq 0 4`; do
@@ -35,7 +37,10 @@ for i in `seq 0 4`; do
 done
 notify-send "$MSG"
 paplay /usr/share/sounds/freedesktop/stereo/complete.oga
-date
+if [ "$sig_int_triggerd" = "1" ]; then
+	echo -n -e "\r"
+	date
+fi
 if [ "$sig_int_triggerd" = "0" ]; then
 	i=0
 	while true; do
@@ -46,7 +51,8 @@ if [ "$sig_int_triggerd" = "0" ]; then
 			break
 		fi
 	done
+	echo -n -e "\r"
+	notify-send "$MSG"
+	paplay /usr/share/sounds/freedesktop/stereo/complete.oga
 	date
 fi
-
-
