@@ -8,14 +8,18 @@ sig_int_handle()
 
 interruptible_sleep()
 {
+	unit=0.2
+	scale=10
+	secondsxastep=2 # 0.2 * 10
 	seconds=$1
+	secondsxa=$((seconds * scale))
 	while true; do
 		if [ "$sig_int_triggerd" = "1" ]; then
 			break
 		fi
-		sleep 1;
-		seconds=$((seconds - 1));
-		if [ $seconds -eq 0 ]; then
+		sleep $unit;
+		secondsxa=$((secondsxa - $secondsxastep));
+		if [ $secondsxa -eq 0 ]; then
 			break
 		fi
 	done
@@ -36,7 +40,7 @@ for i in `seq 0 4`; do
 	fi
 done
 notify-send "$MSG"
-paplay /usr/share/sounds/freedesktop/stereo/complete.oga
+paplay /usr/share/sounds/freedesktop/stereo/complete.oga &
 if [ "$sig_int_triggerd" = "1" ]; then
 	echo -n -e "\r"
 	date
@@ -53,6 +57,6 @@ if [ "$sig_int_triggerd" = "0" ]; then
 	done
 	echo -n -e "\r"
 	notify-send "$MSG"
-	paplay /usr/share/sounds/freedesktop/stereo/complete.oga
+	paplay /usr/share/sounds/freedesktop/stereo/complete.oga &
 	date
 fi
