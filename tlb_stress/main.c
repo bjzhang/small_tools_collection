@@ -64,8 +64,21 @@ int main(void)
 
         /* ── Step 1: Select n random, distinct-page offsets ─────────────── */
         /*
-         * BUF_PAGES = 4096 = 2^12, so modulo is unbiased for any 64-bit
+         * page_offsets[i] = page_idx × PAGE_SIZE = page_idx × 4096
+         *
+         * BUF_PAGES = 4096 = 2^12, so the modulo is unbiased for any 64-bit
          * xorshift64 output.
+         *
+         * Virtual address bit breakdown (when MMU enabled under an OS):
+         *   EA_i[11: 0] = 0x000                   (page-aligned; offset=0)
+         *   EA_i[20:12] = page_idx[8:0]            → indexes a leaf PTE
+         *   EA_i[29:21] = page_idx[11:9] + base    → indexes an L2/PMD entry
+         *
+         * With BUF_PAGES=4096 pages across 8 L2 entries (512 pages each),
+         * 32 random draws exercise ≈7.9 out of 8 L2 entries per iteration.
+         * Each distinct page_idx produces a distinct virtual page number (VPN)
+         * → requires a distinct TLB entry and, on a miss, a separate full
+         * page-table walk.  See "Page Table Pattern" in README.md.
          */
         for (unsigned i = 0; i < n; i++) {
             uint64_t page_idx  = xorshift64(&prng) % BUF_PAGES;

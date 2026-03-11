@@ -186,6 +186,180 @@ addresses are sequential and almost certainly in a single TLB entry.
 
 ---
 
+## Page Table Pattern
+
+### Virtual address structure
+
+A virtual address is divided into **virtual-page-number** (VPN) fields and a
+12-bit **page offset** (for 4 KiB pages).  The hardware page-table walker
+(PTW) uses the VPN fields to index through a tree of page-table nodes until
+it reaches a **leaf page table entry** (PTE) that records the physical page
+number and access flags.
+
+#### AArch64 — 4 KiB granule, 48-bit VA (4 levels, default with TCR_EL1.T0SZ=16)
+
+```
+ 63     48 47    39 38    30 29    21 20    12 11       0
+ ┌────────┬────────┬────────┬────────┬────────┬──────────┐
+ │(unused)│  L0    │  L1    │  L2    │  L3    │  offset  │
+ │        │ (PGD)  │ (PUD)  │ (PMD)  │ (PTE)  │          │
+ └────────┴────────┴────────┴────────┴────────┴──────────┘
+             9 bits   9 bits   9 bits   9 bits   12 bits
+```
+
+| Level | Entries per table | Coverage per entry |
+|-------|------------------|--------------------|
+| L0 (PGD) | 512 | 512 GB |
+| L1 (PUD) | 512 | 1 GB |
+| L2 (PMD) | 512 | 2 MB |
+| L3 (PTE) | 512 | **4 KB** ← leaf |
+
+The PTW traverses L0→L1→L2→L3, loading one 8-byte descriptor per level,
+before reaching the leaf PTE that yields the physical page number.
+
+#### RISC-V Sv39 — 3 levels (default for 64-bit Linux / OpenSBI)
+
+```
+ 63     39 38    30 29    21 20    12 11       0
+ ┌────────┬────────┬────────┬────────┬──────────┐
+ │(unused)│ VPN[2] │ VPN[1] │ VPN[0] │  offset  │
+ │        │ (root) │        │ (leaf) │          │
+ └────────┴────────┴────────┴────────┴──────────┘
+             9 bits   9 bits   9 bits   12 bits
+```
+
+| Level  | Coverage per entry |
+|--------|--------------------|
+| VPN[2] | 1 GB |
+| VPN[1] | 2 MB |
+| VPN[0] | **4 KB** ← leaf |
+
+*Sv48* adds a fourth level (VPN[3], 9 bits) between the unused bits and
+VPN[2], extending the virtual address space to 256 TiB.
+
+---
+
+### How test_buf maps into the page table
+
+`test_buf` is a 16 MiB, page-aligned BSS array:
+
+```
+BUF_PAGES × PAGE_SIZE = 4096 × 4 KiB = 16 MiB
+```
+
+Those 4096 consecutive virtual pages map into the page table like this:
+
+| Level | Entries consumed | Why |
+|-------|-----------------|-----|
+| Leaf (L3 / VPN[0]) | **4096** | one per 4 KiB page |
+| Mid  (L2 / VPN[1]) | **8**    | one per 2 MiB block: 16 MiB ÷ 2 MiB = 8 |
+| Upper (L1 / VPN[2]) | **1**   | all 16 MiB fits in one 1 GB slot |
+
+```
+L1 entry (covers 1 GB)
+└─ L2 entry 0  [test_buf_base +  0 MiB .. + 2 MiB)  → 512 leaf PTEs
+└─ L2 entry 1  [test_buf_base +  2 MiB .. + 4 MiB)  → 512 leaf PTEs
+└─ L2 entry 2  [test_buf_base +  4 MiB .. + 6 MiB)  → 512 leaf PTEs
+   ...
+└─ L2 entry 7  [test_buf_base + 14 MiB .. +16 MiB)  → 512 leaf PTEs
+                                               Total: 4096 leaf PTEs
+```
+
+---
+
+### Why the random access pattern exercises every page table level
+
+In each iteration `main.c` selects 32 page indices uniformly from `[0, 4095]`:
+
+```c
+page_offsets[i] = xorshift64(&prng) % BUF_PAGES  ×  PAGE_SIZE
+```
+
+The virtual address of element `i` is:
+
+```
+EA_i = test_buf_base + page_offsets[i]
+     = test_buf_base + page_idx_i × 4096
+```
+
+Splitting `EA_i` into VPN fields:
+
+```
+EA_i bits [11: 0] = 0x000                    (always zero; page-aligned)
+EA_i bits [20:12] = page_idx_i[8:0]          → selects a leaf PTE (L3 / VPN[0])
+EA_i bits [29:21] = page_idx_i[11:9] + base  → selects an L2 entry (VPN[1])
+```
+
+Each distinct `page_idx_i` produces a **distinct VPN**, requiring a separate
+TLB entry.
+
+**L2 coverage**: with 4096 pages spread across 8 L2 entries (512 pages each),
+32 random draws touch approximately 8 × (1 − (7/8)³²) ≈ **7.9 out of 8 L2
+entries** on average.  Virtually every L2 node is visited per vector
+instruction.
+
+**TLB miss cost**: a TLB miss for a leaf entry triggers a full page-table
+walk — the PTW loads one table descriptor per level before reaching the
+leaf PTE.  Across 32 elements, a single vector instruction can cause:
+
+| What | Count |
+|------|-------|
+| Leaf TLB (L3 / VPN[0]) misses | up to 32 |
+| L2 / VPN[1] table descriptor fetches | up to 32 |
+| L1 / VPN[2] table descriptor fetches | up to 32 |
+| L0 / PGD  descriptor fetches (AArch64 only) | up to 32 |
+| **Total extra memory accesses per vector instruction** | **up to 96–128** |
+
+This is why an indexed gather/scatter over randomly-scattered pages is far
+more expensive than a contiguous vector load, even when data cache behaviour
+is held constant.
+
+---
+
+### TLB eviction via capacity pressure
+
+Before each timed vector instruction, `main.c` reads one byte from each of
+the 2048 pages in `evict_buf`:
+
+```
+test_buf needs up to 4096 TLB entries (one per page).
+evict_buf adds    2048 TLB entries in the same address space.
+A typical dTLB holds 32–1024 entries.
+```
+
+After the sweep the dTLB is full of `evict_buf` translations and has
+discarded the stale `test_buf` entries.  No privileged TLB-invalidation
+instruction (`TLBI` / `SFENCE.VMA`) is needed; ordinary **capacity eviction**
+suffices.  The 32 test pages selected for the next instruction are almost
+certainly not cached, ensuring fresh TLB misses and page-table walks on
+every iteration.
+
+---
+
+### Bare-metal MMU context
+
+In the current bare-metal build (`arm/startup.S`, `riscv/startup.S`) the MMU
+is **left disabled**: there are no page tables and no hardware page-table
+walks.  The test stresses **QEMU's internal software TLB** (SOFTMMU) instead.
+QEMU's SOFTMMU is a 256-entry per-address-space translation cache; the same
+scattered `page_offsets[]` pattern causes SOFTMMU misses and refills,
+producing the observable cycle-count variation in the test output.
+
+Use `-d mmu -D /tmp/qemu_mmu.log` (see "Observing TLB-miss behaviour" below)
+to trace every SOFTMMU miss triggered by the vector instruction.
+
+To measure **real hardware** TLB misses and page-table-walk latency, compile
+the test as a Linux userspace binary.  The kernel builds and maintains the
+full page-table tree for `test_buf` automatically, and:
+
+```bash
+perf stat -e dTLB-load-misses,dTLB-store-misses ./tlb_stress
+```
+
+will count exactly the leaf-PTE misses described above.
+
+---
+
 ## Directory layout
 
 ```

@@ -13,6 +13,16 @@
 
 /* ── Memory layout ──────────────────────────────────────────────────────── */
 #define PAGE_SIZE           4096U
+/*
+ * BUF_PAGES controls the number of distinct virtual pages reachable by the
+ * test.  4096 = 2^12 pages (16 MiB) map to the following page-table nodes
+ * (4 KiB granule, 3- or 4-level table):
+ *   Leaf PTEs  (L3 / VPN[0]): 4096 — one per 4 KiB page
+ *   L2 / PMD   (VPN[1]):          8 — one per 2 MiB block (16 MiB ÷ 2 MiB)
+ *   L1 / PUD   (VPN[2]):          1 — all 16 MiB fits in one 1 GB slot
+ *
+ * Choosing a power-of-2 size makes the PRNG modulo unbiased.
+ */
 #define BUF_PAGES           4096U       /* test buffer: 4096 × 4 KiB = 16 MiB  */
 #define BUF_SIZE            ((uint64_t)BUF_PAGES * PAGE_SIZE)
 #define EVICT_PAGES         2048U       /* eviction sweep: 2048 × 4 KiB = 8 MiB */
