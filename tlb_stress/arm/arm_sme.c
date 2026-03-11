@@ -43,26 +43,46 @@ void run_vector_test(const tlb_config_t    *cfg,
 
     if (cfg->do_store) {
         /*
-         * ── THE TLB-stress instruction: scatter store ─────────────────────
+         * ── THE TLB-stress instruction: SVE indexed scatter store ─────────
          *
-         *   st1d { z0.d }, p0, [x_base, z1.d]
+         * Instruction form:
+         *   st1d  { z0.d }, p0, [x_base, z1.d]
          *
-         * z0.d  = data (filled with a canary so the write is valid)
-         * p0    = all-true predicate  (ptrue p0.d)
-         * x_base = buf base address
-         * z1.d  = byte offsets loaded from page_offsets[]
+         * Operands:
+         *   { z0.d }   – data to store; 64-bit element view of SVE reg z0
+         *   p0         – governing predicate; set all-true by "ptrue p0.d",
+         *                meaning every lane [0 .. SVL/64 − 1] is active
+         *   x_base     – scalar base address (= buf argument)
+         *   z1.d       – index vector; z1.d[i] holds a 64-bit byte offset
          *
-         * Each element i writes buf[page_offsets[i]], touching a different
-         * 4 KiB page → up to SVL/64 TLB misses from one instruction.
+         * Effective address of element i:
+         *   EA_i = x_base + z1.d[i]   (SVE "base + vector-of-offsets" form)
+         *
+         * Why this causes many TLB misses
+         * ────────────────────────────────
+         * z1.d is loaded from page_offsets[], which was populated by main.c
+         * with randomly-chosen, distinct 4 KiB-aligned byte offsets.  Because
+         * each EA_i sits in a different virtual page, the CPU/MMU must perform
+         * a separate TLB lookup (and potentially a page-table walk) for every
+         * active lane.  With SVL = 2048 bits there are 32 active 64-bit lanes,
+         * so this single instruction can trigger up to 32 TLB misses.
+         *
+         * Contrast with a contiguous store:
+         *   st1d { z0.d }, p0, [x_base]        ← lane i at x_base + i×8
+         * All 32 lanes would lie in a 256-byte window (well under one 4 KiB
+         * page), so a contiguous store causes at most ONE TLB miss.
+         *
+         * The gather/scatter form is the only SVE addressing mode that lets a
+         * single instruction span an arbitrary set of virtual pages.
          */
         asm volatile(
             /* All-true predicate for 64-bit elements */
             "ptrue  p0.d                          \n\t"
-            /* Load offset vector from page_offsets[] */
+            /* Contiguous load: read page_offsets[] (all in one page) into z1 */
             "ld1d   { z1.d }, p0/z, [%1]         \n\t"
             /* Fill store data with a recognisable canary value */
             "dup    z0.d, #0x5A                   \n\t"
-            /* ── ONE scatter store (the TLB-stress instruction) ── */
+            /* ── ONE scatter store: EA_i = buf + z1.d[i] ─────────────────── */
             "st1d   { z0.d }, p0, [%0, z1.d]     \n\t"
             :
             : "r"(buf), "r"(page_offsets)
@@ -70,24 +90,44 @@ void run_vector_test(const tlb_config_t    *cfg,
         );
     } else {
         /*
-         * ── THE TLB-stress instruction: gather load ───────────────────────
+         * ── THE TLB-stress instruction: SVE indexed gather load ───────────
          *
-         *   ld1d { z0.d }, p0/z, [x_base, z1.d]
+         * Instruction form:
+         *   ld1d  { z0.d }, p0/z, [x_base, z1.d]
          *
-         * z0.d  = destination (result discarded; only TLB traffic matters)
-         * p0    = all-true predicate
-         * x_base = buf base address
-         * z1.d  = byte offsets loaded from page_offsets[]
+         * Operands:
+         *   { z0.d }   – destination; 64-bit element view of SVE reg z0
+         *   p0/z       – governing predicate (all-true); "/z" means zeroing:
+         *                inactive lanes are written to 0 rather than kept
+         *   x_base     – scalar base address (= buf argument)
+         *   z1.d       – index vector; z1.d[i] is a 64-bit byte offset
          *
-         * Each element i reads buf[page_offsets[i]], touching a different
-         * 4 KiB page → up to SVL/64 TLB misses from one instruction.
+         * Effective address of element i:
+         *   EA_i = x_base + z1.d[i]   (SVE "base + vector-of-offsets" form)
+         *
+         * Why this causes many TLB misses
+         * ────────────────────────────────
+         * z1.d holds page_offsets[0..n-1], each pointing into a randomly
+         * chosen distinct 4 KiB page within test_buf.  The CPU must translate
+         * every EA_i independently; because none of them share a page, all n
+         * translations miss the TLB (which was just capacity-evicted by the
+         * sweep in main.c).  With SVL = 2048 bits → 32 lanes → up to 32
+         * independent TLB misses from this one instruction.
+         *
+         * Contrast with the two non-indexed SVE load forms:
+         *   ld1d { z0.d }, p0/z, [x0]       contiguous: EA_i = x0 + i×8
+         *   ld1d { z0.d }, p0/z, [x0, x1]   scalar+reg: EA_i = x0+x1 + i×8
+         * Both keep all lanes within a small window → ≤ 1 TLB miss total.
+         *
+         * The result in z0 is intentionally discarded; only the address
+         * translation side-effects (TLB traffic and page-walk cost) matter.
          */
         asm volatile(
             /* All-true predicate for 64-bit elements */
             "ptrue  p0.d                          \n\t"
-            /* Load offset vector from page_offsets[] */
+            /* Contiguous load: read page_offsets[] (all in one page) into z1 */
             "ld1d   { z1.d }, p0/z, [%1]         \n\t"
-            /* ── ONE gather load (the TLB-stress instruction) ── */
+            /* ── ONE gather load: EA_i = buf + z1.d[i] ───────────────────── */
             "ld1d   { z0.d }, p0/z, [%0, z1.d]  \n\t"
             :
             : "r"(buf), "r"(page_offsets)

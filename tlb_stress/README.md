@@ -46,6 +46,146 @@ element touches a distinct 4 KiB page.  With VLEN = 256 and LMUL = m8,
 
 ---
 
+## Indexed Gather/Scatter Addressing Explained
+
+### What "indexed" means
+
+Most vector loads are *contiguous* or *strided*: they read or write
+consecutive (or evenly-spaced) memory locations:
+
+```
+contiguous:   addr_i = base + i × element_size
+strided:      addr_i = base + i × stride
+```
+
+An **indexed** (gather/scatter) load or store is different: each lane `i`
+has its own independent effective address supplied in a second vector register:
+
+```
+indexed:      addr_i = base + index_vec[i]
+```
+
+The CPU must therefore perform a **separate virtual-to-physical address
+translation** for every active element.  This is precisely why a single
+indexed instruction can cause many TLB misses: with 32 active elements each
+pointing into a different 4 KiB page, the hardware walks 32 independent page
+table entries in one instruction.
+
+---
+
+### Arm SVE indexed gather load — instruction anatomy
+
+```
+ld1d  { z0.d }, p0/z, [x_base, z1.d]
+```
+
+| Field | Meaning |
+|-------|---------|
+| `ld1d` | Load, 1 register, doubleword (64-bit) elements |
+| `{ z0.d }` | Destination: SVE register `z0`, 64-bit element view |
+| `p0/z` | Governing predicate `p0`, zeroing (inactive lanes written 0) |
+| `[x_base, z1.d]` | **Indexed base**: effective address of lane `i` = `x_base + z1.d[i]` |
+
+The operand `[x_base, z1.d]` is what makes this a **gather**: `z1` is a
+vector of 64-bit byte offsets, one per lane.  The CPU issues as many
+independent address translations as there are active lanes.
+
+Compare with the two simpler SVE forms that would **not** stress the TLB:
+
+| Form | Syntax example | Address of lane i |
+|------|----------------|-------------------|
+| Contiguous | `ld1d { z0.d }, p0/z, [x0]` | `x0 + i × 8` (sequential) |
+| Scalar+immediate | `ld1d { z0.d }, p0/z, [x0, #8]` | `x0 + 8 + i × 8` |
+| **Gather (indexed)** | `ld1d { z0.d }, p0/z, [x0, z1.d]` | `x0 + z1.d[i]` (arbitrary) |
+
+In the contiguous form, adjacent lanes differ by just 8 bytes — they almost
+certainly live on the same page, causing **at most one TLB miss**.  The
+indexed form can spread all 32 lanes across 32 different 4 KiB pages,
+causing **up to 32 TLB misses per instruction**.
+
+The matching scatter store is:
+
+```
+st1d  { z0.d }, p0, [x_base, z1.d]
+```
+
+Same index semantics; each lane `i` writes `x_base + z1.d[i]`.
+
+---
+
+### RISC-V RVV indexed load — instruction anatomy
+
+```
+vloxei64.v  v0, (rs1), vs2
+```
+
+The mnemonic encodes several properties:
+
+| Part | Meaning |
+|------|---------|
+| `vl` | Vector **L**oad |
+| `ox` | **O**ffset-inde**x**ed (each element has its own offset from the base) |
+| `ei64` | **E**lement-**i**ndexed width = **64** bits (each offset is a 64-bit integer) |
+| `.v` | No mask (all active elements determined by `vl` / LMUL) |
+
+Addressing per element `i`:
+
+```
+effective_address_i = rs1 + vs2[i]     (vs2[i] is a 64-bit byte offset)
+```
+
+`vs2` here is `v8` (an 8-register group `v8..v15` under LMUL=m8), loaded
+beforehand from `page_offsets[]` using `vle64.v`.
+
+**Why `ox` and not `ux`?**  RVV 1.0 defines two indexed load variants:
+`vloxei64.v` ("ordered indexed") guarantees accesses appear in element order,
+while `vluxei64.v` ("unordered indexed") allows the hardware to reorder
+accesses for better throughput.  Both compute identical addresses (`EA_i =
+rs1 + vs2[i]`) and issue the same number of per-element TLB lookups.
+`vloxei64.v` is used here because it is the more universally supported form;
+either variant produces the same TLB-miss pressure since every element
+targets a distinct page and there is no aliasing.
+
+**Contrast with other RVV load variants:**
+
+| Mnemonic | Address of element `i` | TLB behaviour |
+|----------|------------------------|---------------|
+| `vle64.v v0, (rs1)` | `rs1 + i × 8` (unit stride) | ≤ 1 miss per cache line |
+| `vlse64.v v0, (rs1), rs2` | `rs1 + i × rs2` (fixed stride) | ≤ 1 miss per stride step |
+| `vloxei64.v v0, (rs1), vs2` | `rs1 + vs2[i]` (arbitrary) | up to VL misses |
+
+With LMUL=m8 and VLEN=256, `VLMAX = VLEN × LMUL / SEW = 256 × 8 / 64 = 32`
+elements, so one `vloxei64.v` can cause **up to 32 independent TLB lookups**.
+
+The matching scatter store is:
+
+```
+vsoxei64.v  v0, (rs1), vs2
+```
+
+Same offset semantics; element `i` writes `rs1 + vs2[i]`.
+
+---
+
+### Two-step execution in the test
+
+The test always runs the indexed instruction in two steps inside one `asm`
+block to guarantee they are a single atomic timing unit:
+
+1. **Load the index vector** from `page_offsets[]` (one contiguous vector
+   load — touches a single page, no TLB stress):
+   - Arm: `ld1d { z1.d }, p0/z, [%1]`
+   - RISC-V: `vle64.v v8, (%1)`
+
+2. **The TLB-stress instruction** (the single indexed gather/scatter):
+   - Arm: `ld1d { z0.d }, p0/z, [%0, z1.d]`  ← gather load
+   - RISC-V: `vloxei64.v v0, (%0), v8`        ← indexed gather load
+
+Only step 2 causes TLB traffic; step 1 uses a contiguous load whose
+addresses are sequential and almost certainly in a single TLB entry.
+
+---
+
 ## Directory layout
 
 ```
