@@ -77,6 +77,7 @@ trap_handler:
     li   a0, 0
 
 done:
+    wfi
     j    done
 
     .section .bss

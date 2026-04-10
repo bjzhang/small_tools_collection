@@ -46,6 +46,7 @@ fail:
     li   a0, 0
 
 done:
+    wfi
     j    done
 
 trap_handler:
