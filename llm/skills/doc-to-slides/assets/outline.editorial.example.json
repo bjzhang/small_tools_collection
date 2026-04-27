@@ -1,0 +1,124 @@
+{
+  "title": "RVA23, XiangShan, openEuler — CPU IP team's blueprint for OS validation",
+  "footer": "openEuler Developer Day · 2026-04-25",
+  "theme": "editorial",
+  "slides": [
+    {
+      "type": "cover",
+      "title": "From a CPU IP team's perspective:\nthe practice of OS validation",
+      "subtitle": "RVA23 · XiangShan · openEuler 24.03 LTS",
+      "footer": "XiangShan System Validation Group"
+    },
+    {
+      "type": "extension-table",
+      "kicker": "THE PROFILE THAT CHANGED THE CONVERSATION",
+      "title": "RVA23 — ratified October 2024",
+      "label": "Mandatory",
+      "rows": [
+        { "tag": "V", "name": "Vector extension (RVV 1.0)", "sub": "AI/ML, crypto, data parallel" },
+        { "tag": "H", "name": "Hypervisor extension", "sub": "KVM-class virtualization, two-stage translation" },
+        { "tag": "AIA", "name": "Advanced Interrupt Architecture", "sub": "IMSIC + APLIC for MSI delivery" },
+        { "tag": "Zic*", "name": "Cache mgmt + counter overflow + hints", "sub": "Zicbom / Zicbop / Zihpm / Zihintpause…" }
+      ],
+      "sideCard": {
+        "label": "WHY IT MATTERS",
+        "body": "First time the kernel can target RVA23 as a dependable high-performance baseline — compile to it, not around it. One ISA profile. One compile target. One cross-vendor validation baseline.",
+        "variant": "accent"
+      },
+      "sideKpi": { "value": "10+", "label": "MANDATORY EXTENSIONS" }
+    },
+    {
+      "type": "kpi-row",
+      "kicker": "UPSTREAM MILESTONE",
+      "title": "Linux 7.0 — RVA23 mandatory coverage at 100%",
+      "subtitle": "v7.0-rc1 released 2026-02-22 · rva23u64 / rva23s64 mandatory all in mainline",
+      "tiles": [
+        { "value": "100%", "label": "RVA23 MANDATORY COVERAGE", "variant": "accent" },
+        { "value": "v7.0-rc1", "label": "RELEASED 2026-02-22" },
+        { "value": "60+", "label": "REDDIT · RISC-V INTL CTO LIKE" }
+      ],
+      "cards": [
+        { "label": "PRIMARY DRIVER", "body": "SpacemiT K3 — first commercial RVA23 SoC, taped out 2025-12. Missing extensions filled during upstream review.", "variant": "accent" },
+        { "label": "EXTENSIONS ADDED", "body": "Sha- (Hypervisor), Ss- (Supervisor), Zicc- (cache coherence), Za64rs (atomic reservation set). Merged after v2/v3/v4 iterations." },
+        { "label": "supm DEBATE", "body": "Heinrich Schuchardt (Canonical) flagged supm missing from ISA string. Consensus: describe in dt-bindings, synthesize from Smnpm/Ssnpm.", "variant": "warn" },
+        { "label": "NEXT", "body": "v7.1 / v7.2: CPU feature parsing exposed via cpuinfo and hwprobe to userspace; rva23u64/s64 as a dedicated base ISA." }
+      ],
+      "note": "Cross-vendor, cross-SoC expressive completeness — the prerequisite for treating one Profile as the validation starting point."
+    },
+    {
+      "type": "frozen-vs-mutable",
+      "kicker": "STACK ARCHITECTURE",
+      "title": "Kernel constant. Workload variant.",
+      "frozen": {
+        "label": "FROZEN ACROSS ITERATIONS",
+        "items": ["Firmware (OpenSBI)", "openEuler kernel", "Device tree (DTB)"]
+      },
+      "mutable": {
+        "label": "MUTATES PER ITERATION",
+        "items": ["Workload + test programs", "Datasets / SPEC inputs", "Kernel cmdline (intent)"]
+      },
+      "note": "In CPU validation, the build system is a first-order correctness problem — not an engineering convenience."
+    },
+    {
+      "type": "layer-stack",
+      "kicker": "SPLIT-IMAGE ARCHITECTURE",
+      "title": "Three layers, independently loadable",
+      "layers": [
+        { "label": "LAYER 1 · IMMUTABLE", "name": "Firmware + kernel + DTB", "sub": "Revision-managed. Byte-identical across an entire test campaign.", "variant": "accent" },
+        { "label": "LAYER 2 · TEST IMAGE", "name": "Workload + datasets + task-runner.sh", "sub": "Produced as cpio (initrd) and ext4 (block device). Varies with test intent." },
+        { "label": "LAYER 3 · INTENT", "name": "Kernel cmdline", "sub": "Read by task-runner.sh at boot. Decides which permutation runs." }
+      ],
+      "companion": [
+        { "label": "PROPERTY", "body": "Storage-media agnostic — NVDIMM, NVMe, USB. Boot params decide." },
+        { "label": "PROPERTY", "body": "One build. Test image rebuilt only when workload campaign changes." },
+        { "label": "PROPERTY", "body": "Zero ambiguity — kernel-changed-between-runs is not a question we ask." }
+      ]
+    },
+    {
+      "type": "comparison",
+      "kicker": "FAMILIAR MENTAL MODEL",
+      "title": "Almost the same as container distribution",
+      "leftLabel": "Container distribution",
+      "rightLabel": "Split-image validation",
+      "rows": [
+        ["Immutable layers", "content-addressed image layers", "revision-frozen firmware-kernel-DTB"],
+        ["Shared read-only base", "image layers across containers", "OverlayFS lower across workers"],
+        ["Per-instance writable", "container RW upper", "OverlayFS upper per worker"],
+        ["Runtime intent", "ENV / CMD / Pod spec", "/proc/cmdline + -append"],
+        ["Distribution", "registry pull-by-digest", "OBS + JFrog pull-by-hash"],
+        ["Build once, run many", "build once, run anywhere", "build once, validate everywhere"]
+      ]
+    },
+    {
+      "type": "ascii-diagram",
+      "kicker": "HOST + GUEST VALIDATION",
+      "title": "One branch. Two memory layouts.",
+      "label": "PHYSICAL MEMORY MAP",
+      "diagram": "0x8000_0000  ┌─ OpenSBI ──────────────────────────────────────┐\n             │ Firmware reserve                              │\n             ├─ Host kernel (defconfig + xiangshan.config) ──┤\n             │ ...                                           │\n0x8020_0000  ├─ Host rootfs (< 512 MB)  ─────────────────────┤\n             │ task-runner.sh + workloads + OverlayFS        │\n0xA000_0000  ├─ Task region (cap 2 GB)  ─────────────────────┤\n             │ SPEC datasets, scratch, /tmp uppers           │\n0x4_6000_0000├─ Guest rootfs (KVM, virtio-9p shared)  ───────┤\n             │ Same task-runner.sh binary, byte-identical    │\n             └────────────────────────────────────────────────┘",
+      "legend": [
+        { "label": "OpenSBI", "variant": "accent" },
+        { "label": "Host kernel" },
+        { "label": "Guest (KVM)" }
+      ]
+    },
+    {
+      "type": "code",
+      "title": "One command line. Host + guest.",
+      "language": "bash",
+      "code": "./qemu-system-riscv64 -nographic -machine virt \\\n  -cpu rv64,sv39=on \\\n  -smp cpus=1 -m 2G -kernel ./Image \\\n  -append \"console=ttyS0 earlycon \\\n          <host_test_params> \\\n          <guest_test_params>\""
+    },
+    {
+      "type": "closing",
+      "title": "Thank you.",
+      "subtitle": "Questions, critique, collaboration — all welcome.",
+      "quote": "The free development of each is the condition for the free development of all.",
+      "quoteAttribution": "Marx / Engels · Manifesto of the Communist Party",
+      "links": [
+        ["XiangShan RTL", "https://github.com/OpenXiangShan/XiangShan"],
+        ["openEuler RISC-V", "https://gitee.com/openeuler/RISC-V"],
+        ["RVCK project", "https://github.com/RVCK-Project/kernel-6.6"],
+        ["openEuler community", "https://openeuler.org"]
+      ]
+    }
+  ]
+}

@@ -1,0 +1,16 @@
+{
+  "name": "nexus",
+  "colors": {
+    "bg": "F7F6F2",
+    "surface": "FBFBF9",
+    "border": "D4D1CA",
+    "text": "28251D",
+    "muted": "7A7974",
+    "accent": "01696F"
+  },
+  "fonts": {
+    "heading": "Calibri",
+    "body": "Calibri",
+    "mono": "Consolas"
+  }
+}

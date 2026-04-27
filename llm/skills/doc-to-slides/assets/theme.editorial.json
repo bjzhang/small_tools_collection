@@ -1,0 +1,60 @@
+{
+  "name": "editorial",
+  "description": "Engineering-editorial style. Warm off-white canvas, single teal accent, three-tier type hierarchy. Optimized for high-density technical decks where each slide is a self-contained newspaper page.",
+  "colors": {
+    "bg": "F7F6F2",
+    "surface": "FBFBF9",
+    "surfaceAlt": "F1EFE8",
+    "border": "D4D1CA",
+    "borderSoft": "E4E2DC",
+    "text": "28251D",
+    "muted": "7A7974",
+    "faint": "BAB9B4",
+    "accent": "01696F",
+    "accentSoft": "E0EEEE",
+    "warn": "964219",
+    "warnSoft": "F3E4D9"
+  },
+  "fonts": {
+    "heading": "Calibri",
+    "body": "Calibri",
+    "mono": "Consolas",
+    "headingCJK": "Microsoft YaHei",
+    "bodyCJK": "Microsoft YaHei"
+  },
+  "type": {
+    "coverTitlePt": 56,
+    "h1Pt": 36,
+    "h1MaxPt": 44,
+    "h1MinPt": 28,
+    "kickerPt": 11,
+    "subPt": 13,
+    "bodyPt": 12,
+    "bodyEmphPt": 18,
+    "kpiBigPt": 36,
+    "kpiHeroPt": 140,
+    "kpiLabelPt": 10,
+    "chromePt": 8.5,
+    "monoPt": 11,
+    "footerItalicPt": 14,
+    "kickerCharSpacing": 0,
+    "chromeCharSpacing": 1
+  },
+  "layout": {
+    "widthIn": 13.333,
+    "heightIn": 7.5,
+    "marginXIn": 0.55,
+    "marginYIn": 0.55,
+    "footerHeightIn": 0.35,
+    "headerStripHeightIn": 0.55,
+    "cardRadiusIn": 0.08,
+    "pillRadiusFraction": 0.5
+  },
+  "rules": {
+    "kickerCase": "ALL_CAPS",
+    "footerVoice": "italic_muted_aphorism_allowed",
+    "monoReservedFor": ["page_numbers", "footer_nav", "source_line", "code_blocks", "ascii_diagrams"],
+    "accentUseCases": ["one_emphasized_card_per_slide", "stat_value", "kicker_text", "active_navigation"],
+    "warnUseCases": ["caveats", "open_questions", "known_limitations"]
+  }
+}

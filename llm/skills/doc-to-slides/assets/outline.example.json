@@ -1,0 +1,67 @@
+{
+  "title": "Service Mesh, Take 2",
+  "footer": "arch-rfc.md · 2026-04-27",
+  "slides": [
+    {
+      "type": "cover",
+      "title": "Service Mesh, Take 2",
+      "subtitle": "Why we're moving from sidecar to ambient",
+      "footer": "Platform team · 2026-04-27"
+    },
+    {
+      "type": "section",
+      "title": "Why now"
+    },
+    {
+      "type": "bullets",
+      "title": "The sidecar tax got expensive",
+      "bullets": [
+        "~12% CPU overhead per pod",
+        "Memory floor doubled in 2025",
+        "Upgrade pain across 4k pods",
+        "On-call paged 6× last quarter"
+      ]
+    },
+    {
+      "type": "stat",
+      "value": "12%",
+      "caption": "CPU overhead per pod under sidecar mesh"
+    },
+    {
+      "type": "two-column",
+      "title": "Sidecar vs. ambient",
+      "left":  { "heading": "Sidecar", "items": ["Per-pod proxy", "Familiar ops", "12% CPU"] },
+      "right": { "heading": "Ambient", "items": ["Per-node ztunnel", "New ops model", "~3% CPU"] }
+    },
+    {
+      "type": "code",
+      "title": "Migration entry point",
+      "language": "yaml",
+      "code": "apiVersion: install.istio.io/v1alpha1\nkind: IstioOperator\nspec:\n  profile: ambient"
+    },
+    {
+      "type": "bullets",
+      "title": "Risks we're accepting",
+      "bullets": [
+        "L7 gaps until waypoint GA",
+        "New CNI dependency",
+        "Limited multi-cluster story"
+      ]
+    },
+    {
+      "type": "bullets",
+      "title": "Rollout plan",
+      "bullets": [
+        "Stage 1: dev clusters (week 1–2)",
+        "Stage 2: stage clusters (week 3)",
+        "Stage 3: prod canary at 5% (week 4)",
+        "Stage 4: prod 100% (week 6)"
+      ]
+    },
+    {
+      "type": "closing",
+      "title": "Decision needed",
+      "subtitle": "Approve ambient migration plan by Friday"
+    }
+  ]
+}
