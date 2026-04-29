@@ -121,6 +121,32 @@ Single figure with caption.
 }
 ```
 
+### `center-panel`
+
+Central element (text, table, or code) surrounded by panels — left/right or four corners. Use when a diagram, table, or key number anchors the slide and concepts radiate around it.
+
+```jsonc
+{
+  "type": "center-panel",
+  "title": "string (required)",
+  "center": {
+    "kind": "text" | "table" | "code",
+    "value": "string — large display text, e.g. '< 400 MB'",
+    "headers": ["string", "..."],
+    "rows": [["string", "..."], ...],
+    "language": "string (optional)",
+    "code": "string"
+  },
+  "layout": "corners" | "sides",
+  "top_left":     { "heading": "string", "bullets": ["≤12 words", "..."] },
+  "top_right":    { "heading": "string", "bullets": ["≤12 words", "..."] },
+  "bottom_left":  { "heading": "string", "bullets": ["≤12 words", "..."] },
+  "bottom_right": { "heading": "string", "bullets": ["≤12 words", "..."] },
+  "left":  { "heading": "string", "bullets": ["≤12 words", "..."] },
+  "right": { "heading": "string", "bullets": ["≤12 words", "..."] }
+}
+```
+
 ### `closing`
 
 Final slide. No bullets.

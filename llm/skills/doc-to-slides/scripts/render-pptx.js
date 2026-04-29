@@ -181,6 +181,107 @@ const renderers = {
     );
   },
 
+  "center-panel"(s, d) {
+    bg(s);
+    const ct = d.center || {};
+    title(s, d.title, MARGIN, 0.7, 24);
+
+    if (d.layout === "sides") {
+      const panelW = 3.0, panelY = 1.5, panelH = 5.2;
+      const gap = 0.35;
+      const ctX = MARGIN + panelW + gap;
+      const ctW = W - 2 * MARGIN - 2 * panelW - 2 * gap;
+
+      [d.left, d.right].forEach((panel, i) => {
+        if (!panel) return;
+        const px = i === 0 ? MARGIN : W - MARGIN - panelW;
+        s.addText(panel.heading, {
+          x: px, y: panelY, w: panelW, h: 0.4,
+          fontSize: 16, fontFace: F.heading, bold: true, color: C.accent,
+        });
+        s.addText(
+          (panel.bullets || []).slice(0, 4).map((b) => ({ text: b, options: { bullet: { indent: 14 } } })),
+          { x: px, y: panelY + 0.55, w: panelW, h: panelH - 0.65, fontSize: 12, fontFace: F.body, color: C.text, paraSpaceAfter: 6 }
+        );
+      });
+
+      if (ct.kind === "text") {
+        s.addText(ct.value || "", {
+          x: ctX, y: panelY + 0.5, w: ctW, h: panelH - 0.5,
+          fontSize: 48, fontFace: F.heading, bold: true, color: C.accent, align: "center", valign: "middle",
+        });
+      } else if (ct.kind === "code") {
+        s.addShape("rect", {
+          x: ctX, y: panelY, w: ctW, h: panelH,
+          fill: { color: C.surface }, line: { color: C.border, width: 0.5 },
+        });
+        s.addText(ct.code || "", {
+          x: ctX + 0.15, y: panelY + 0.15, w: ctW - 0.3, h: panelH - 0.3,
+          fontSize: 11, fontFace: F.mono, color: C.text, valign: "top",
+        });
+      } else if (ct.kind === "table") {
+        const hdr = (ct.headers || []).map((h) => ({ text: h, options: { bold: true, fill: { color: C.surface }, fontSize: 11 } }));
+        const dataRows = (ct.rows || []).map((row) => row.map((cell) => ({ text: cell, options: { fontSize: 10 } })));
+        s.addTable([hdr, ...dataRows], {
+          x: ctX, y: panelY + 0.3, w: ctW,
+          border: { type: "solid", pt: 0.5, color: C.border },
+          colW: ct.headers ? ct.headers.map(() => ctW / ct.headers.length) : undefined,
+          fontFace: F.body, autoPage: false,
+        });
+      }
+    } else if (d.layout === "corners") {
+      const cornerW = 2.9, cornerH = 2.3;
+      const gapC = 0.35;
+      const ctX = MARGIN + cornerW + gapC;
+      const ctW = W - 2 * MARGIN - 2 * cornerW - 2 * gapC;
+      const ctY = 1.5, ctH = 5.2;
+
+      const corners = [
+        { key: "top_left", x: MARGIN, y: 1.5 },
+        { key: "top_right", x: W - MARGIN - cornerW, y: 1.5 },
+        { key: "bottom_left", x: MARGIN, y: 4.2 },
+        { key: "bottom_right", x: W - MARGIN - cornerW, y: 4.2 },
+      ];
+      corners.forEach(({ key, x, y }) => {
+        const panel = d[key];
+        if (!panel) return;
+        s.addText(panel.heading, {
+          x, y, w: cornerW, h: 0.35,
+          fontSize: 14, fontFace: F.heading, bold: true, color: C.accent,
+        });
+        s.addText(
+          (panel.bullets || []).slice(0, 3).map((b) => ({ text: b, options: { bullet: { indent: 12 } } })),
+          { x, y: y + 0.55, w: cornerW, h: cornerH - 0.65, fontSize: 11, fontFace: F.body, color: C.text, paraSpaceAfter: 5 }
+        );
+      });
+
+      if (ct.kind === "text") {
+        s.addText(ct.value || "", {
+          x: ctX, y: ctY + 0.5, w: ctW, h: ctH - 1.0,
+          fontSize: 64, fontFace: F.heading, bold: true, color: C.accent, align: "center", valign: "middle",
+        });
+      } else if (ct.kind === "code") {
+        s.addShape("rect", {
+          x: ctX, y: ctY + 0.2, w: ctW, h: ctH - 0.4,
+          fill: { color: C.surface }, line: { color: C.border, width: 0.5 },
+        });
+        s.addText(ct.code || "", {
+          x: ctX + 0.15, y: ctY + 0.35, w: ctW - 0.3, h: ctH - 0.7,
+          fontSize: 10, fontFace: F.mono, color: C.text, valign: "top",
+        });
+      } else if (ct.kind === "table") {
+        const hdr = (ct.headers || []).map((h) => ({ text: h, options: { bold: true, fill: { color: C.surface }, fontSize: 11 } }));
+        const dataRows = (ct.rows || []).map((row) => row.map((cell) => ({ text: cell, options: { fontSize: 10 } })));
+        s.addTable([hdr, ...dataRows], {
+          x: ctX + 0.1, y: ctY + 0.5, w: ctW - 0.2,
+          border: { type: "solid", pt: 0.5, color: C.border },
+          colW: ct.headers ? ct.headers.map(() => (ctW - 0.2) / ct.headers.length) : undefined,
+          fontFace: F.body, autoPage: false,
+        });
+      }
+    }
+  },
+
   closing(s, d) {
     bg(s);
     s.addText(d.title || "Thank you.", {
@@ -204,7 +305,7 @@ for (const slideDef of outline.slides) {
     process.exit(65);
   }
   r(s, slideDef);
-  if (slideDef.type !== "cover" && slideDef.type !== "section") footer(s);
+  if (slideDef.type !== "cover" && slideDef.type !== "section" && slideDef.type !== "closing") footer(s);
   else pageNum += 1;
 }
 
