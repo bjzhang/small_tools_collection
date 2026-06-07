@@ -1,7 +1,7 @@
 ---
 name: riscv-tier1-mapping
-version: "2.1"
-updated: "2026-04-29"
+version: "2.2"
+updated: "2026-05-20"
 description: >
   Tier-1 source, evidence-first RISC-V architecture mapping skill.
   Activate whenever a task involves mapping RISC-V ISA extensions,
@@ -50,19 +50,19 @@ Do not rely on a cached or version-pinned copy if a newer ratification or releas
 
 | Category | Canonical URL / location | What to use |
 |---|---|---|
-| **RISC-V Ratified Extensions** | https://lf-riscv.atlassian.net/wiki/display/HOME/RatifiedExtensions | Check this page first for ratification dates and current extension status. |
+| **RISC-V Ratified Extensions** | https://riscv.atlassian.net/wiki/spaces/HOME/pages/16154769/RISC-V+Technical+Specifications (primary) + https://docs.riscv.org/reference/ (live specs) | Check these pages first for ratification dates and current extension status. The old lf-riscv domain now redirects to riscv.atlassian.net. |
 | **RISC-V Technical Specs Archive** | https://riscv.atlassian.net/wiki/spaces/HOME/pages/16154899/RISC-V+Technical+Specifications+Archive | Use for spec PDFs and version history. |
 | **RISC-V Unified Database (live specs)** | https://docs.riscv.org/reference/ | Privileged spec, Unprivileged spec, Svpbmt, Ssqosid, Pointer Masking v1.0, Zicfiss/Zicfilp, all ratified extensions. Always link to the specific section (e.g., Priv §3.1.6.5, Unpriv Appendix A, Unpriv §2.1.7). |
-| **RVA23 Profile** | https://github.com/riscv/riscv-profiles/blob/main/src/rva23-profile.adoc | Mandatory/optional/expansion sets; ratified Oct 2024. Fetch latest commit for any post-RVA23 addenda. |
-| **RISC-V Server Platform Spec** | https://github.com/riscv-non-isa/riscv-server-platform | Currently v0.9 in development; target ratification ~May 2026. Always fetch the latest release tag. |
-| **RISC-V Server SoC Spec** | https://github.com/riscv-non-isa/server-soc | v1.0 ratified Feb 2025. Check for any errata or point releases. |
+| **RVA23 Profile** | https://github.com/riscv/riscv-profiles/blob/main/src/rva23-profile.adoc (repo archived Apr 2026 — read-only) | Mandatory/optional/expansion sets; ratified Oct 2024. Repository archived 2026-04-22; current profile content at docs.riscv.org/reference/. |
+| **RISC-V Server Platform Spec** | https://github.com/riscv-non-isa/riscv-server-platform | v1.0 ratified May 2026. Always fetch the latest release tag. |
+| **RISC-V Server SoC Spec** | https://github.com/riscv-non-isa/riscv-server-soc | v1.0 ratified Feb 2025. Check for any errata or point releases. |
 | **RISC-V BRS** | https://github.com/riscv-non-isa/riscv-brs | v1.0 ratified Aug 2025. |
-| **RPMI** | https://github.com/riscv-non-isa/riscv-rpmi | v0.9 frozen Apr 2025; v2.0 ratification plan 2026 H1. Fetch the latest. |
+| **RPMI** | https://github.com/riscv-non-isa/riscv-rpmi | v1.0 ratified Jul 2025. Fetch the latest. |
 | **CBQRI** | https://github.com/riscv-non-isa/riscv-cbqri | v1.0 ratified Jun 2024. |
 | **RERI** | https://github.com/riscv-non-isa/riscv-ras-eri | v1.0 ratified May 2024. |
 | **Self-hosted Trace** | https://github.com/riscv/self-hosted-trace | Draft v0.6.1 Mar 2026; target ratification 2026-2027. Always fetch latest tag. |
 | **E-Trace / N-Trace / TCI** | https://github.com/riscv-non-isa/riscv-trace-spec | TCI v1.0 ratified Nov 2024. Check latest for N-Trace errata. |
-| **Smmtt / Smmpt** | https://github.com/riscv/riscv-smmtt | v0.3.3 stable draft Apr 2025; ARC freeze ongoing. Fetch latest release. |
+| **Smmtt / Smmpt** | https://github.com/riscv/riscv-smmtt | v0.49 draft (Jan 2026); ARC freeze ongoing. Fetch latest release. |
 | **CoVE / AP-TEE** | https://github.com/riscv-non-isa/riscv-ap-tee | Development draft. Always fetch latest. |
 | **Memory Tagging TG (Zimt/Svatag)** | https://github.com/riscv-admin/riscv-memory-tagging | v0.2 draft Sep 2025; spec freeze target 2028. |
 | **IME (Integrated Matrix Extension)** | RISC-V Ratified Extensions page above + IME TG GitHub | Ratification plan 2026 H2. Fetch current draft from TG repo. |
@@ -130,7 +130,7 @@ Apply all six dimensions for every comparison. Skip none.
   - CFI: Zicfiss (shadow stack, Jun 2024, RVA23 Expansion Optional), Zicfilp (landing pad, Jun 2024, RVA23 Expansion Optional).
   - Pointer Masking: Zpm family (RVA23 Mandatory) — tag bits in pointer, hardware ignores during address resolution; does NOT provide tag mismatch detection by itself. Fetch Pointer Masking v1.0 spec (docs.riscv.org/reference/isa/priv/zpm.html) for latest.
   - Memory Tagging: Zimt/Svatag, charter May 2024, v0.2 draft Sep 2025, spec freeze 2028. Pointer Masking does not substitute for full hardware memory tagging.
-  - CoVE / AP-TEE: riscv-ap-tee dev draft. Smmtt v0.3.3 stable draft Apr 2025. Fetch latest.
+  - CoVE / AP-TEE: riscv-ap-tee dev draft. Smmtt v0.49 draft (Jan 2026). Fetch latest.
 - **Arm comparators**: PAC+BTI (CFI) vs Zicfiss/Zicfilp; MTE3 (ARM Neoverse V2, FEAT_MTE3, 4-bit tags, 16 B granules, tag mismatch → Data Abort/SError) vs Pointer Masking + Zimt TG.
 - **x86**: CET shadow stack vs Zicfiss; ENDBRANCH vs Zicfilp.
 - Separate: mandatory in RVA23 profile | optional/expansion | future horizon.
@@ -150,7 +150,7 @@ Apply all six dimensions for every comparison. Skip none.
 ### 3.5 Confidential Computing and CoVE
 - **RISC-V anchors (T1)**:
   - CoVE (riscv-ap-tee) dev draft: TSM/TVM model, Memory Integrity Engine (replay/splicing protection via AES-GCM / HMAC-SHA256 on DDR controller).
-  - Smmtt v0.3.3 / Smmpt: supervisor domains, memory protection table, ARC freeze ongoing. Fetch latest release.
+  - Smmtt v0.49 / Smmpt: supervisor domains, memory protection table, ARC freeze ongoing. Fetch latest release.
   - Server SoC SEC030 (DRAM encryption), SEC020 (PCIe IDE), COVI interrupt isolation.
 - **Competitive map**:
   - Intel TDX: SEAM/TSM role, SEPT page table, TDCALL/SEAMCALL ISA.
@@ -192,7 +192,7 @@ Apply all six dimensions for every comparison. Skip none.
 4. **Include timelines with status flags**:
    - `RATIFIED <date>` / `PUBLIC REVIEW <date>` / `DRAFT <date>` / `RATIFICATION PLAN <target date>`
 
-5. **Scope every statement** to a named profile (e.g., RVA23) and platform spec version (e.g., Server Platform v0.9, Server SoC v1.0). Never say "all RISC-V".
+5. **Scope every statement** to a named profile (e.g., RVA23) and platform spec version (e.g., Server Platform v1.0, Server SoC v1.0). Never say "all RISC-V".
 
 6. **Separate the concern** per claim:
    - Programmer-visible semantics
