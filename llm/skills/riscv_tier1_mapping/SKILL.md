@@ -1,7 +1,7 @@
 ---
 name: riscv-tier1-mapping
-version: "2.2"
-updated: "2026-05-20"
+version: "2.4"
+updated: "2026-07-13"
 description: >
   Tier-1 source, evidence-first RISC-V architecture mapping skill.
   Activate whenever a task involves mapping RISC-V ISA extensions,
@@ -12,7 +12,7 @@ description: >
   kunminghu-v3-feature-list instead of or alongside this skill.
 ---
 
-# Skill: riscv-tier1-mapping  (v2.1)
+# Skill: riscv-tier1-mapping  (v2.4)
 
 ## When to activate
 
@@ -66,6 +66,9 @@ Do not rely on a cached or version-pinned copy if a newer ratification or releas
 | **CoVE / AP-TEE** | https://github.com/riscv-non-isa/riscv-ap-tee | Development draft. Always fetch latest. |
 | **Memory Tagging TG (Zimt/Svatag)** | https://github.com/riscv-admin/riscv-memory-tagging | v0.2 draft Sep 2025; spec freeze target 2028. |
 | **IME (Integrated Matrix Extension)** | RISC-V Ratified Extensions page above + IME TG GitHub | Ratification plan 2026 H2. Fetch current draft from TG repo. |
+| **AME (Attached Matrix Extension)** | https://github.com/riscv/riscv-ame (spec) + https://github.com/riscv-admin/attached-matrix-extension (admin) + UDB `Zvame` | **Draft v0.2** (2026-06-15), ~188 pp. Freeze target end 2026; Public Review 2027-02-07; BoD 2027-04-29. TG RVG-135, Chair: Zhong Su (Alibaba), VC: Derek Hower (Qualcomm), 233 members. **2026-07-01: elementwise instructions added** (PR #11, scope expansion). Software: RACE-org/riscv-ame-{llvm,triton,gem5,matrix-core} (early-stage). Dashboard: https://riscv.github.io/adm-spec-dashboard. |
+
+> **AME vs IME**: AME = attached co-processor with tile registers; IME = integrated into pipeline. Both target ML/HPC. AME tracked as `Zvame` in UDB.
 | **Arm ARM (DDI0487)** | https://developer.arm.com/documentation/ddi0487 | Memory model B2.10.2, Device types, MPAM — comparator only. Fetch the latest issue. |
 | **Arm Neoverse TRMs** | https://developer.arm.com/documentation (search Neoverse V2/V3 TRM) | Comparator only. |
 | **Arm CMN TRMs** | CMN-700: https://developer.arm.com/documentation/102337; CMN S3: https://developer.arm.com/documentation/107858 | Comparator only for NoC/QoS analysis. |
