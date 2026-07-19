@@ -1,0 +1,27 @@
+[project]
+name = "feishu-opencode-bot"
+version = "0.1.0"
+description = "飞书 Bot 控制 opencode session（Phase 1）"
+requires-python = ">=3.10"
+dependencies = [
+    "lark-oapi>=1.0.0",
+    "httpx>=0.24.0",
+    "pyyaml>=6.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0",
+    "pytest-asyncio>=0.21",
+    "respx>=0.20",
+]
+
+[project.scripts]
+feishu-opencode-bot = "main:main"
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.backends._legacy:_Backend"
+
+[tool.setuptools]
+packages = ["src"]

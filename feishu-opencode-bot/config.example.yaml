@@ -1,0 +1,23 @@
+# 飞书应用凭据（从 https://open.feishu.cn/app 获取）
+feishu:
+  app_id: "cli_xxxxxxxxxxxxxxxx"
+  app_secret: "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+
+# opencode serve HTTP API 后端
+opencode:
+  base_url: "http://127.0.0.1:4096"
+  username: "opencode"
+  # 密码从环境变量替换（不写入文件）
+  password: "${OPENCODE_SERVER_PASSWORD}"
+
+# 安全：用户/群白名单
+security:
+  allowed_users:
+    - "ou_xxxxxxxxxxxxxxxx"  # 飞书 user open_id（必填，至少 1 个）
+  allowed_chats:
+    - "oc_xxxxxxxxxxxxxxxx"  # 飞书 chat_id（可选，群消息白名单）
+
+# 日志
+logging:
+  level: "INFO"
+  file: null  # null=stdout，或指定文件路径
