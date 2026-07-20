@@ -108,6 +108,8 @@ class CommandRouter:
         self.register("help", self._handle_help)
         self.register("status", self._handle_status)
         self.register("send", self._handle_send)
+        self.register("switch_agent", self._handle_switch_agent)
+        self.register("agents", self._handle_agents)
 
     def register(self, name: str, handler: CommandHandler) -> None:
         """注册命令 handler（后续 task 用此方法注册新命令）。
@@ -202,15 +204,11 @@ class CommandRouter:
         lines = [
             "📖 飞书 opencode bot 命令：",
             "",
-            "**已实现**：",
+            "**所有命令已实现** ✅：",
         ]
         lines.extend(implemented)
 
         lines.extend([
-            "",
-            "**Phase 1 计划实现（Task 7）**：",
-            "- `/switch_agent <session_id> <agent>` — 切换 agent（如 prometheus/atlas）",
-            "- `/agents` — 列出所有可用 agent",
             "",
             "**示例**：",
             "```",
@@ -219,6 +217,7 @@ class CommandRouter:
             "/status ses_abc123 10",
             "/send ses_abc123 重启服务",
             "/switch_agent ses_abc123 prometheus",
+            "/agents",
             "```",
         ])
         return "\n".join(lines)
@@ -365,3 +364,121 @@ class CommandRouter:
                 f"输入 `/list` 查看所有可用 session"
             )
         return f"❌ 操作 session `{session_id}` 失败：{error_msg}"
+
+    # ===== Task 7: /switch_agent + /agents =====
+
+    async def _handle_switch_agent(
+        self, router: "CommandRouter", command: "Command"
+    ) -> str:
+        """处理 /switch_agent <session_id> <agent_name>。
+
+        ⭐ T217 核心需求：通过飞书切换 opencode session 的 agent
+        （prometheus ↔ atlas ↔ sisyphus 等）。
+
+        安全约束：
+            agent_name 必须先调用 list_agents() 验证在可用列表中。
+            不允许任意字符串（防止命令注入或无效切换）。
+
+        用法：
+            /switch_agent ses_001 prometheus
+            /switch_agent ses_001 atlas
+        """
+        if len(command.args) < 2:
+            return (
+                "❌ 用法：/switch_agent <session_id> <agent_name>\n\n"
+                "示例：`/switch_agent ses_001 prometheus`\n\n"
+                "查看可用 agent：`/agents`"
+            )
+
+        session_id = command.args[0]
+        agent_name = command.args[1].lower()  # agent 名大小写不敏感
+
+        # 1. 验证 agent 名在可用列表中（关键安全约束）
+        try:
+            available_agents = await self.opencode.list_agents()
+        except Exception as e:
+            logger.exception("/switch_agent list_agents 失败")
+            return (
+                f"❌ 无法获取可用 agent 列表：{e}\n\n"
+                f"请检查 opencode serve 是否运行"
+            )
+
+        valid_agent_ids = {
+            a.get("id", "").lower() for a in available_agents if a.get("id")
+        }
+        if agent_name not in valid_agent_ids:
+            available_str = ", ".join(
+                f"`{a.get('id')}`" for a in available_agents if a.get("id")
+            )
+            return (
+                f"❌ 无效 agent：`{agent_name}`\n\n"
+                f"可用 agent：{available_str}\n\n"
+                f"或输入 `/agents` 查看完整列表"
+            )
+
+        try:
+            await self.opencode.switch_agent(session_id, agent_name)
+        except Exception as e:
+            logger.exception("/switch_agent 切换失败")
+            return self._format_session_error(session_id, e)
+
+        agent_info = next(
+            (a for a in available_agents if a.get("id", "").lower() == agent_name),
+            {},
+        )
+        description = agent_info.get("description", "")
+        display_name = agent_info.get("name", agent_name)
+
+        lines = [
+            f"✅ Session `{session_id}` 已切换到 agent：`{agent_name}`",
+        ]
+        if display_name and display_name != agent_name:
+            lines.append(f"**显示名**：{display_name}")
+        if description:
+            desc_preview = description[:100] + ("..." if len(description) > 100 else "")
+            lines.append(f"**描述**：{desc_preview}")
+        return "\n".join(lines)
+
+    async def _handle_agents(
+        self, router: "CommandRouter", command: "Command"
+    ) -> str:
+        """处理 /agents：列出所有可用 agent。
+
+        格式：
+            🤖 可用 agent（N 个）：
+
+            1. `prometheus` — Plan Builder
+               战略规划师，负责设计工作计划...
+            2. `atlas` — Plan Executor
+               ...
+        """
+        try:
+            agents = await self.opencode.list_agents()
+        except Exception as e:
+            logger.exception("/agents list_agents 失败")
+            return f"❌ 获取 agent 列表失败：{e}"
+
+        if not agents:
+            return "📭 当前没有可用 agent（检查 opencode serve 配置）"
+
+        lines = [f"🤖 可用 agent（{len(agents)} 个）：", ""]
+        for i, a in enumerate(agents, 1):
+            agent_id = a.get("id", "?")
+            display_name = a.get("name", "")
+            description = a.get("description", "")
+            model = a.get("model", "")
+
+            title = f"{i}. `{agent_id}`"
+            if display_name:
+                title += f" — {display_name}"
+            if model:
+                title += f" [`{model}`]"
+            lines.append(title)
+
+            if description:
+                desc_preview = description[:150] + ("..." if len(description) > 150 else "")
+                lines.append(f"   {desc_preview}")
+            lines.append("")
+
+        lines.append("**切换 agent**：`/switch_agent <session_id> <agent_id>`")
+        return "\n".join(lines)

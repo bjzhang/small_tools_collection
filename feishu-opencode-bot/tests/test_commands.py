@@ -109,6 +109,8 @@ def mock_opencode():
     client.get_session = AsyncMock()
     client.get_messages = AsyncMock()
     client.send_message = AsyncMock()
+    client.list_agents = AsyncMock()
+    client.switch_agent = AsyncMock()
     return client
 
 
@@ -463,3 +465,175 @@ def test_router_registers_status_and_send(router: CommandRouter):
     commands = router.list_commands()
     assert "status" in commands
     assert "send" in commands
+
+
+# ===== Task 7: /switch_agent 测试 =====
+
+
+async def test_switch_agent_no_args(router: CommandRouter):
+    """/switch_agent 无参数返回用法提示。"""
+    response = await router.handle_text("/switch_agent")
+    assert "❌" in response
+    assert "用法" in response
+
+
+async def test_switch_agent_only_session(router: CommandRouter):
+    """/switch_agent ses_001 缺 agent 名。"""
+    response = await router.handle_text("/switch_agent ses_001")
+    assert "❌" in response
+
+
+async def test_switch_agent_success(router: CommandRouter, mock_opencode):
+    """/switch_agent 成功切换（prometheus → atlas）。"""
+    mock_opencode.list_agents.return_value = [
+        {"id": "prometheus", "name": "Plan Builder", "description": "战略规划"},
+        {"id": "atlas", "name": "Plan Executor", "description": "执行计划"},
+    ]
+    mock_opencode.switch_agent.return_value = None
+
+    response = await router.handle_text("/switch_agent ses_001 atlas")
+    assert "✅" in response
+    assert "ses_001" in response
+    assert "atlas" in response
+    assert "Plan Executor" in response
+    mock_opencode.switch_agent.assert_called_once_with("ses_001", "atlas")
+
+
+async def test_switch_agent_case_insensitive(router: CommandRouter, mock_opencode):
+    """/switch_agent agent 名大小写不敏感。"""
+    mock_opencode.list_agents.return_value = [{"id": "prometheus"}]
+    mock_opencode.switch_agent.return_value = None
+    response = await router.handle_text("/switch_agent ses_001 PROMETHEUS")
+    assert "✅" in response
+    mock_opencode.switch_agent.assert_called_once_with("ses_001", "prometheus")
+
+
+async def test_switch_agent_invalid(router: CommandRouter, mock_opencode):
+    """/switch_agent 无效 agent 名被拒绝。"""
+    mock_opencode.list_agents.return_value = [
+        {"id": "prometheus"},
+        {"id": "atlas"},
+    ]
+    response = await router.handle_text("/switch_agent ses_001 hacker")
+    assert "❌" in response
+    assert "无效" in response
+    assert "hacker" in response
+    assert "prometheus" in response
+    assert "atlas" in response
+    mock_opencode.switch_agent.assert_not_called()
+
+
+async def test_switch_agent_list_agents_error(router: CommandRouter, mock_opencode):
+    """/switch_agent list_agents 失败时返回错误。"""
+    mock_opencode.list_agents.side_effect = ConnectionError("opencode down")
+    response = await router.handle_text("/switch_agent ses_001 prometheus")
+    assert "❌" in response
+    assert "opencode down" in response
+    mock_opencode.switch_agent.assert_not_called()
+
+
+async def test_switch_agent_switch_error(router: CommandRouter, mock_opencode):
+    """/switch_agent 切换 API 失败时返回错误。"""
+    mock_opencode.list_agents.return_value = [{"id": "prometheus"}]
+    mock_opencode.switch_agent.side_effect = RuntimeError("session closed")
+    response = await router.handle_text("/switch_agent ses_001 prometheus")
+    assert "❌" in response
+
+
+async def test_switch_agent_not_found(router: CommandRouter, mock_opencode):
+    """/switch_agent 不存在的 session 友好提示。"""
+    mock_opencode.list_agents.return_value = [{"id": "prometheus"}]
+    mock_opencode.switch_agent.side_effect = RuntimeError("404 Not Found")
+    response = await router.handle_text("/switch_agent ses_unknown prometheus")
+    assert "❌" in response
+    assert "不存在" in response
+
+
+async def test_switch_agent_with_description(router: CommandRouter, mock_opencode):
+    """/switch_agent 成功时返回 agent 描述。"""
+    long_desc = "x" * 200
+    mock_opencode.list_agents.return_value = [
+        {"id": "prometheus", "name": "Plan Builder", "description": long_desc},
+    ]
+    mock_opencode.switch_agent.return_value = None
+    response = await router.handle_text("/switch_agent ses_001 prometheus")
+    assert "✅" in response
+    assert "Plan Builder" in response
+    assert "..." in response
+
+
+async def test_switch_agent_no_description(router: CommandRouter, mock_opencode):
+    """/switch_agent agent 无描述时正常工作。"""
+    mock_opencode.list_agents.return_value = [{"id": "build"}]
+    mock_opencode.switch_agent.return_value = None
+    response = await router.handle_text("/switch_agent ses_001 build")
+    assert "✅" in response
+    assert "build" in response
+
+
+# ===== Task 7: /agents 测试 =====
+
+
+async def test_agents_success(router: CommandRouter, mock_opencode):
+    """/agents 返回所有 agent 列表。"""
+    mock_opencode.list_agents.return_value = [
+        {"id": "prometheus", "name": "Plan Builder", "description": "战略规划", "model": "glm-5.2"},
+        {"id": "atlas", "name": "Plan Executor", "description": "执行", "model": "glm-5.2"},
+    ]
+    response = await router.handle_text("/agents")
+    assert "🤖" in response
+    assert "2 个" in response
+    assert "prometheus" in response
+    assert "atlas" in response
+    assert "Plan Builder" in response
+    assert "Plan Executor" in response
+
+
+async def test_agents_empty(router: CommandRouter, mock_opencode):
+    """/agents 无可用 agent。"""
+    mock_opencode.list_agents.return_value = []
+    response = await router.handle_text("/agents")
+    assert "📭" in response
+
+
+async def test_agents_error(router: CommandRouter, mock_opencode):
+    """/agents API 失败时返回错误。"""
+    mock_opencode.list_agents.side_effect = TimeoutError("timeout")
+    response = await router.handle_text("/agents")
+    assert "❌" in response
+    assert "timeout" in response
+
+
+async def test_agents_truncates_long_description(router: CommandRouter, mock_opencode):
+    """/agents 长描述被截断。"""
+    long_desc = "x" * 200
+    mock_opencode.list_agents.return_value = [
+        {"id": "build", "description": long_desc},
+    ]
+    response = await router.handle_text("/agents")
+    assert "..." in response
+    assert long_desc not in response
+
+
+async def test_agents_includes_switch_hint(router: CommandRouter, mock_opencode):
+    """/agents 包含切换 agent 的提示。"""
+    mock_opencode.list_agents.return_value = [{"id": "prometheus"}]
+    response = await router.handle_text("/agents")
+    assert "/switch_agent" in response
+
+
+# ===== 注册验证 =====
+
+
+def test_router_registers_switch_agent_and_agents(router: CommandRouter):
+    """CommandRouter 默认注册 switch_agent 和 agents。"""
+    commands = router.list_commands()
+    assert "switch_agent" in commands
+    assert "agents" in commands
+
+
+def test_router_all_commands_registered(router: CommandRouter):
+    """Phase 1 所有 6 个命令都已注册（list/help/status/send/switch_agent/agents）。"""
+    commands = router.list_commands()
+    expected = {"agents", "help", "list", "send", "status", "switch_agent"}
+    assert expected.issubset(set(commands))
