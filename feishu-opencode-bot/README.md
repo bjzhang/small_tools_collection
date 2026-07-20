@@ -24,23 +24,58 @@
 2. 飞书 App ID/Secret（注册企业自建应用）
 3. 飞书 user_id（白名单）
 
-## 快速开始（脚手架阶段）
+## 快速开始
+
+### 1. 配置准备
 
 ```bash
 cd tools_collections/feishu-opencode-bot/
 
-# 安装依赖
-pip install -r requirements.txt
+# 复制环境变量模板（敏感凭据，已 gitignore）
+cp .env.example .env
+# 编辑 .env，填入真实凭据：
+#   - FEISHU_APP_ID / FEISHU_APP_SECRET（飞书企业自建应用）
+#   - OPENCODE_BASE_URL / OPENCODE_USERNAME / OPENCODE_SERVER_PASSWORD
+#   - FEISHU_WHITELIST_USER_IDS（逗号分隔，仅作参考）
 
-# 复制配置模板
+# 复制配置模板（运行时配置，已 gitignore）
 cp config.example.yaml config.yaml
-# 编辑 config.yaml 填入凭据
+# 编辑 config.yaml：
+#   - 所有 ${VAR} 自动从 .env 加载（无需修改）
+#   - security.allowed_users 必须填入你的 user open_id（YAML list，不能从 .env 自动读取）
+```
 
-# 设置环境变量
+### 2. 安装依赖
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+```
+
+### 3. 启动
+
+```bash
+./run.sh              # 前台启动
+./run.sh --check      # 仅检查配置
+./run.sh --background # 后台启动（nohup）
+```
+
+run.sh 会自动 `source .env` 加载环境变量，校验配置，然后启动 main.py。
+
+### 4. 字段名约定
+
+⚠️ **OPENCODE_SERVER_PASSWORD**（带 `SERVER_`）：与 opencode 官方约定一致。
+启动 `opencode serve` 时使用相同的环境变量名，确保密码同步：
+
+```bash
+# 终端 1：启动 opencode serve
 export OPENCODE_SERVER_PASSWORD='your-password'
+opencode serve --port 4096
 
-# 运行（当前只会校验配置并退出）
-python main.py
+# 终端 2：启动 feishu-opencode-bot
+cd tools_collections/feishu-opencode-bot/
+./run.sh  # 自动从 .env 读取 OPENCODE_SERVER_PASSWORD
 ```
 
 ## 配置文件
