@@ -106,6 +106,8 @@ class CommandRouter:
         # 注册内置命令
         self.register("list", self._handle_list)
         self.register("help", self._handle_help)
+        self.register("status", self._handle_status)
+        self.register("send", self._handle_send)
 
     def register(self, name: str, handler: CommandHandler) -> None:
         """注册命令 handler（后续 task 用此方法注册新命令）。
@@ -206,15 +208,15 @@ class CommandRouter:
 
         lines.extend([
             "",
-            "**Phase 1 计划实现（Task 6-7）**：",
-            "- `/status <session_id>` — 查看 session 详情",
-            "- `/send <session_id> <message>` — 向 session 发送消息",
+            "**Phase 1 计划实现（Task 7）**：",
             "- `/switch_agent <session_id> <agent>` — 切换 agent（如 prometheus/atlas）",
+            "- `/agents` — 列出所有可用 agent",
             "",
             "**示例**：",
             "```",
             "/list",
             "/status ses_abc123",
+            "/status ses_abc123 10",
             "/send ses_abc123 重启服务",
             "/switch_agent ses_abc123 prometheus",
             "```",
@@ -229,3 +231,137 @@ class CommandRouter:
             f"已知命令：{known}\n"
             f"输入 `/help` 查看完整帮助"
         )
+
+    # ===== Task 6: /status + /send =====
+
+    async def _handle_status(
+        self, router: "CommandRouter", command: "Command"
+    ) -> str:
+        """处理 /status <session_id>：查看 session 详情 + 最近消息。
+
+        用法：
+            /status ses_001         — 默认显示 5 条最近消息
+            /status ses_001 10      — 显示 10 条最近消息
+        """
+        if not command.args:
+            return (
+                "❌ 用法：/status <session_id> [消息条数]\n\n"
+                "示例：\n"
+                "- `/status ses_001` — 显示最近 5 条消息\n"
+                "- `/status ses_001 10` — 显示最近 10 条消息"
+            )
+
+        session_id = command.args[0]
+        message_count = 5
+        if len(command.args) >= 2:
+            try:
+                message_count = int(command.args[1])
+                if message_count < 0 or message_count > 50:
+                    return "❌ 消息条数必须在 0-50 之间"
+            except ValueError:
+                return f"❌ 无效的消息条数：{command.args[1]!r}（应为整数）"
+
+        try:
+            session = await self.opencode.get_session(session_id)
+        except Exception as e:
+            logger.exception("/status get_session 失败")
+            return self._format_session_error(session_id, e)
+
+        messages_text = ""
+        if message_count > 0:
+            try:
+                messages = await self.opencode.get_messages(session_id)
+                recent = messages[-message_count:] if messages else []
+                messages_text = self._format_messages(recent)
+            except Exception as e:
+                logger.exception("/status get_messages 失败")
+                messages_text = f"\n\n⚠️ 获取消息历史失败：{e}"
+
+        return self._format_session_detail(session) + messages_text
+
+    async def _handle_send(
+        self, router: "CommandRouter", command: "Command"
+    ) -> str:
+        """处理 /send <session_id> <message>：向 session 发送消息。
+
+        安全：消息内容会被 SecurityGuard.sanitize_input() 清理（如果 router 上有 guard）。
+        Phase 1 不支持引号参数。
+        """
+        if len(command.args) < 2:
+            return (
+                "❌ 用法：/send <session_id> <message>\n\n"
+                "示例：`/send ses_001 重启服务`"
+            )
+
+        session_id = command.args[0]
+        # join args[1:] 重建消息以保留多词之间的空格（raw_text 不会处理多余空白）
+        message = " ".join(command.args[1:])
+
+        if not message.strip():
+            return "❌ 消息内容不能为空"
+
+        guard = getattr(self, "_security_guard", None)
+        if guard is not None:
+            message = guard.sanitize_input(message)
+            if not message:
+                return "❌ 消息清理后为空（可能包含危险字符）"
+
+        try:
+            result = await self.opencode.send_message(session_id, message)
+        except Exception as e:
+            logger.exception("/send send_message 失败")
+            return self._format_session_error(session_id, e)
+
+        msg_id = result.get("id", "?") if isinstance(result, dict) else "?"
+        return (
+            f"✅ 消息已发送到 session `{session_id}`\n\n"
+            f"消息 ID: `{msg_id}`\n"
+            f"内容预览: {message[:50]}{'...' if len(message) > 50 else ''}"
+        )
+
+    def _format_session_detail(self, session: dict) -> str:
+        """格式化 session 详情。"""
+        sid = session.get("id", "?")
+        agent = session.get("agent", "?")
+        title = session.get("title", "")
+        created = session.get("createdAt", "?")
+        updated = session.get("updatedAt", "?")
+        model = session.get("model", "")
+
+        lines = [
+            f"📊 **Session**: `{sid}`",
+            f"**Agent**: `{agent}`",
+        ]
+        if title:
+            lines.append(f"**Title**: {title}")
+        if model:
+            lines.append(f"**Model**: `{model}`")
+        lines.append(f"**Created**: {created}")
+        lines.append(f"**Updated**: {updated}")
+        return "\n".join(lines)
+
+    def _format_messages(self, messages: list) -> str:
+        """格式化消息列表。"""
+        if not messages:
+            return "\n\n💤 暂无消息历史"
+        lines = [f"\n\n💬 **最近消息**（{len(messages)} 条）：", ""]
+        for msg in messages:
+            role = msg.get("role", "?")
+            content = msg.get("content", "")
+            # 魔数 200 字符截断防止飞书消息过长
+            if len(content) > 200:
+                content = content[:200] + "..."
+            icon = "👤" if role == "user" else "🤖"
+            lines.append(f"{icon} `[{role}]` {content}")
+        return "\n".join(lines)
+
+    def _format_session_error(self, session_id: str, error: Exception) -> str:
+        """格式化 session 操作错误（区分 404 与一般错误）。"""
+        error_msg = str(error)
+        error_lower = error_msg.lower()
+        if "404" in error_lower or "not found" in error_lower or "不存在" in error_msg:
+            return (
+                f"❌ Session `{session_id}` 不存在\n\n"
+                f"输入 `/list` 查看所有可用 session"
+            )
+        return f"❌ 操作 session `{session_id}` 失败：{error_msg}"

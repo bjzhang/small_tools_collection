@@ -106,6 +106,9 @@ def mock_opencode():
     """Mock OpencodeClient。"""
     client = MagicMock()
     client.list_sessions = AsyncMock()
+    client.get_session = AsyncMock()
+    client.get_messages = AsyncMock()
+    client.send_message = AsyncMock()
     return client
 
 
@@ -265,3 +268,198 @@ def test_list_commands_sorted(router: CommandRouter):
     commands = router.list_commands()
     # 排序后 alpha 应该在 zebra 前
     assert commands.index("alpha") < commands.index("zebra")
+
+
+# ===== Task 6: /status 测试 =====
+
+
+async def test_status_no_args(router: CommandRouter):
+    """/status 无参数返回用法提示。"""
+    response = await router.handle_text("/status")
+    assert "❌" in response
+    assert "用法" in response
+
+
+async def test_status_success(router: CommandRouter, mock_opencode):
+    """/status 成功返回详情 + 最近消息。"""
+    mock_opencode.get_session.return_value = {
+        "id": "ses_001",
+        "agent": "prometheus",
+        "title": "Plan A",
+        "createdAt": "2026-07-19",
+        "updatedAt": "2026-07-20",
+        "model": "glm-5.2",
+    }
+    mock_opencode.get_messages.return_value = [
+        {"role": "user", "content": "你好"},
+        {"role": "assistant", "content": "你好，有什么可以帮你？"},
+    ]
+    response = await router.handle_text("/status ses_001")
+    assert "📊" in response
+    assert "ses_001" in response
+    assert "prometheus" in response
+    assert "Plan A" in response
+    assert "💬" in response
+    assert "你好" in response
+
+
+async def test_status_with_message_count(router: CommandRouter, mock_opencode):
+    """/status ses_001 10 指定消息条数。"""
+    mock_opencode.get_session.return_value = {"id": "ses_001", "agent": "build"}
+    mock_opencode.get_messages.return_value = [
+        {"role": "user", "content": f"msg {i}"} for i in range(15)
+    ]
+    response = await router.handle_text("/status ses_001 10")
+    assert "msg 14" in response
+    assert "msg 0" not in response
+
+
+async def test_status_invalid_count(router: CommandRouter, mock_opencode):
+    """/status ses_001 abc 非法消息条数。"""
+    response = await router.handle_text("/status ses_001 abc")
+    assert "❌" in response
+    assert "无效的消息条数" in response
+
+
+async def test_status_count_out_of_range(router: CommandRouter, mock_opencode):
+    """/status ses_001 100 超出范围。"""
+    response = await router.handle_text("/status ses_001 100")
+    assert "❌" in response
+    assert "0-50" in response
+
+
+async def test_status_not_found(router: CommandRouter, mock_opencode):
+    """/status 不存在的 session 友好提示。"""
+    mock_opencode.get_session.side_effect = RuntimeError("404 Not Found")
+    response = await router.handle_text("/status ses_unknown")
+    assert "❌" in response
+    assert "不存在" in response
+    assert "/list" in response
+
+
+async def test_status_zero_messages(router: CommandRouter, mock_opencode):
+    """/status ses_001 0 不显示消息。"""
+    mock_opencode.get_session.return_value = {"id": "ses_001", "agent": "build"}
+    mock_opencode.get_messages.return_value = [
+        {"role": "user", "content": "should not appear"}
+    ]
+    response = await router.handle_text("/status ses_001 0")
+    assert "📊" in response
+    assert "should not appear" not in response
+    mock_opencode.get_messages.assert_not_called()
+
+
+async def test_status_opencode_error(router: CommandRouter, mock_opencode):
+    """/status opencode_client 抛错时返回错误。"""
+    mock_opencode.get_session.side_effect = ConnectionError("network down")
+    response = await router.handle_text("/status ses_001")
+    assert "❌" in response
+    assert "network down" in response
+
+
+async def test_status_truncates_long_message(router: CommandRouter, mock_opencode):
+    """/status 截断超长消息（>200 字符）。"""
+    mock_opencode.get_session.return_value = {"id": "ses_001", "agent": "build"}
+    long_msg = "x" * 300
+    mock_opencode.get_messages.return_value = [
+        {"role": "user", "content": long_msg}
+    ]
+    response = await router.handle_text("/status ses_001")
+    assert "..." in response
+    assert long_msg not in response
+
+
+# ===== Task 6: /send 测试 =====
+
+
+async def test_send_no_args(router: CommandRouter):
+    """/send 无参数返回用法提示。"""
+    response = await router.handle_text("/send")
+    assert "❌" in response
+    assert "用法" in response
+
+
+async def test_send_only_session_id(router: CommandRouter):
+    """/send ses_001（无消息）返回用法提示。"""
+    response = await router.handle_text("/send ses_001")
+    assert "❌" in response
+
+
+async def test_send_success(router: CommandRouter, mock_opencode):
+    """/send 成功发送消息。"""
+    mock_opencode.send_message.return_value = {"id": "msg_001", "sessionID": "ses_001"}
+    response = await router.handle_text("/send ses_001 重启服务")
+    assert "✅" in response
+    assert "ses_001" in response
+    assert "msg_001" in response
+    assert "重启服务" in response
+    mock_opencode.send_message.assert_called_once_with("ses_001", "重启服务")
+
+
+async def test_send_multi_word_message(router: CommandRouter, mock_opencode):
+    """/send 多词消息保留空格。"""
+    mock_opencode.send_message.return_value = {"id": "msg_x"}
+    response = await router.handle_text("/send ses_001 hello world from bot")
+    assert "✅" in response
+    mock_opencode.send_message.assert_called_once_with(
+        "ses_001", "hello world from bot"
+    )
+
+
+async def test_send_with_security_guard(router: CommandRouter, mock_opencode):
+    """/send 如果 router 有 _security_guard，消息被清理。"""
+    guard = MagicMock()
+    guard.sanitize_input = lambda x: x.replace(";", "")
+    router._security_guard = guard
+
+    mock_opencode.send_message.return_value = {"id": "msg_x"}
+    response = await router.handle_text("/send ses_001 hello;rm -rf /")
+    assert "✅" in response
+    mock_opencode.send_message.assert_called_once_with("ses_001", "hellorm -rf /")
+
+
+async def test_send_empty_message_after_sanitize(router: CommandRouter, mock_opencode):
+    """/send 消息清理后为空时报错。"""
+    guard = MagicMock()
+    guard.sanitize_input = lambda x: ""
+    router._security_guard = guard
+
+    response = await router.handle_text("/send ses_001 ;;;")
+    assert "❌" in response
+    assert "清理后为空" in response
+    mock_opencode.send_message.assert_not_called()
+
+
+async def test_send_opencode_error(router: CommandRouter, mock_opencode):
+    """/send opencode_client 抛错时返回错误。"""
+    mock_opencode.send_message.side_effect = RuntimeError("session closed")
+    response = await router.handle_text("/send ses_001 hello")
+    assert "❌" in response
+    assert "session closed" in response
+
+
+async def test_send_not_found(router: CommandRouter, mock_opencode):
+    """/send 不存在的 session 友好提示。"""
+    mock_opencode.send_message.side_effect = RuntimeError("404 Not Found")
+    response = await router.handle_text("/send ses_unknown hello")
+    assert "❌" in response
+    assert "不存在" in response
+
+
+async def test_send_long_message_preview(router: CommandRouter, mock_opencode):
+    """/send 长消息预览只显示前 50 字符。"""
+    mock_opencode.send_message.return_value = {"id": "msg_x"}
+    long_msg = "a" * 100
+    response = await router.handle_text(f"/send ses_001 {long_msg}")
+    assert "✅" in response
+    assert "..." in response
+
+
+# ===== 注册验证 =====
+
+
+def test_router_registers_status_and_send(router: CommandRouter):
+    """CommandRouter 默认注册 status 和 send。"""
+    commands = router.list_commands()
+    assert "status" in commands
+    assert "send" in commands
