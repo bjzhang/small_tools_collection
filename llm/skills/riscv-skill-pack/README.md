@@ -26,13 +26,13 @@
 1. **克隆本仓库**到 OpenCode 的 skill 目录下：
 
    ```bash
-   git clone <your-fork-url> tools_collections/llm/skills/riscv-skill-pack
+   git clone <your-fork-url> riscv-skill-pack
    ```
 
    或者将本目录添加为子模块：
 
    ```bash
-   git submodule add <your-fork-url> tools_collections/llm/skills/riscv-skill-pack
+   git submodule add <your-fork-url> riscv-skill-pack
    ```
 
 2. **在 OpenCode 配置中注册 skill**。确认 `SKILL.md` 的 frontmatter
