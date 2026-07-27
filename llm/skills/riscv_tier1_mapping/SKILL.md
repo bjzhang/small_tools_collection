@@ -1,7 +1,7 @@
 ---
 name: riscv-tier1-mapping
-version: "2.4"
-updated: "2026-07-13"
+version: "2.3"
+updated: "2026-07-26"
 description: >
   Tier-1 source, evidence-first RISC-V architecture mapping skill.
   Activate whenever a task involves mapping RISC-V ISA extensions,
@@ -10,9 +10,10 @@ description: >
   and output discipline below before any research or comparison begins.
   For KunMingHu V3/V3R1 product feature queries, activate the companion skill
   kunminghu-v3-feature-list instead of or alongside this skill.
+  **v2.3 updates (2026-07-26)**: Added TG extension tracking section + OpaVote tracking workflow.
 ---
 
-# Skill: riscv-tier1-mapping  (v2.4)
+# Skill: riscv-tier1-mapping  (v2.3)
 
 ## When to activate
 
@@ -22,6 +23,7 @@ Activate for any task that:
 - Produces comparison tables, timelines, or checklists for architecture analysis or competitive reviews.
 - Answers whether a RISC-V feature closes a specific Arm/x86 gap.
 - Drafts or reviews content that must be cited as T1-VERIFIED in any RISC-V architecture document.
+- **NEW**: Tracks RISC-V governance actions (TG extensions, OpaVote votes, HC elections, spec freezes/ratifications).
 
 Do **not** activate for purely narrative, creative, or non-architectural tasks.
 For KunMingHu V3/V3R1 product-scope questions (feature list, BOSC/MC items, V2R2 delta, schedule), activate **kunminghu-v3-feature-list** as well.
@@ -36,6 +38,7 @@ Primary outputs:
 - Source-backed feature mappings with explicit T1-VERIFIED / T2-CROSS-CHECKED / UNVERIFIED tags.
 - Dimension-by-dimension comparison tables reusable without re-deriving the evidence.
 - Timelines and ratification-status flags for any decision horizon.
+- **NEW**: TG/SIG/HC/OpaVote governance tracking with deadline and impact analysis.
 
 **Never improvise the architecture. When in doubt, stop and say "UNVERIFIED".**
 
@@ -204,12 +207,136 @@ Apply all six dimensions for every comparison. Skip none.
    - OS / toolchain support expectation
 
 7. **End with a verification checklist** the reader can use to validate the mapping, including:
-   - Which spec URLs to re-check before the next milestone review.
-   - Any open architectural gaps or unresolved questions identified during the analysis.
+    - Which spec URLs to re-check before the next milestone review.
+    - Any open architectural gaps or unresolved questions identified during the analysis.
 
 ---
 
-## 5. Agent Roles (Internal Coordination)
+## 5.4 TG Extension Tracking
+
+For tracking RISC-V Task Group (TG) charter extensions and 1-year approval status:
+
+### 5.4.1 Tracked TGs (11 approved for 1-year extension as of 2026-07-26)
+
+| # | TG | Status | Ratification Target | Chair(s) | KMHv3 Linkage |
+|---|----|--------|---------------------|----------|--------------|
+| 1 | **IOPMP** | 🟠 Draft / ARC Review (spec v0.8.2) | Undetermined (ARC review, ≥2027) | Paul Ku (Andes) / Channing Tang (NVIDIA) | 🔴 **BOSC-616** (F21 gap-analysis), KMH-V3-616.8, 04-02-08 §C-5 |
+| 2 | **Fast Interrupts** | 🟢 AIA Ratified (2023-06); 🟠 CLIC developing | AIA ✅ ratified; CLIC TBD | TG election 2026-06-02 | 🔴 **BOSC-602 / BOSC-617 / BOSC-652** (IMSIC+APLIC), 04-02-00 |
+| 3 | **AME** | 🟠 Draft (188 pages, migrating to Unified DB) | Public Review 2027-02-07; BoD 2027-04-29 | Zhong Su (Alibaba) / Derek Hower (Qualcomm) | 🔴 **KMHv3 feature #26** (M4/01 reserved), req row 69-70, **T190.1** |
+| 4 | **Packed SIMD (P extension)** | 🟠 Draft / long-term development (re-scoped) | Undetermined (≥2027) | Rich Fuhler (2026 election in progress) | 🟡 Weak (no direct KMHv3 demand reference; RVV covers vector path) |
+| 5 | **SPMP (S-mode PMP)** | 🟢 Public Review 2026-05-22 → 2026-06-21 | 2026 H2 (post-PR TSC→BoD) | Bicheng Yang / Sandro Pinto | 🟡 Indirect (RVS-921 ARC review; RVA_020 Smepmp ratified) |
+| 6 | **SmMTT (Supervisor Domain Isolation)** | 🟠 Draft v0.49 (ARC review / Freeze phase) | No commitment (no public date) | TG RVG-65 (chartered 2023-04) | 🟠→🔴 **Strong relevance** (BOSC-603/615 confidential compute; overlaps with T191.2c CoVE) |
+| 7 | **CHERI (Capability Hardware)** | 🟠 Draft v0.9.8 (ARC review) | Q3 2026 (CHERI Blossoms 2026, optimistic) | Alex Richardson (Google) / Simon Moore (Cambridge) co-chair; Tariq Kurd (Codasip) spec lead | 🟡 Indirect (KMHv3 listed as "alternative", Codasip X730 commercialized; not in RVA23/Server Platform) |
+| 8 | **CoVE (AP-TEE)** | 🟠 Development (spec unratified, "Assume everything can change") | Undetermined (spec still Draft, unFrozen) | **Ravi Sahita (Rivos)** + **Guerney Hunt** (co-chair) | 🟡 Indirect (V3 selects CoVE path, BOSC-615) |
+| 9 | **Security Model** | 🟠 Development (v0.5 in ARC review, unFrozen) | Undetermined (ARC review, ≥2027) | **Andrew Dellow** (reports to Security HC) | 🟡 Indirect (security domain framework baseline, non-normative) |
+| 10 | **CoVE-IO** | 🟠 Internal Review (v0.3.0, 2026-02-18, unFrozen) | Undetermined (pre-ARC, ≥2027 H2) | Public results unclear (pending charter/election) | 🟡 Indirect (KMH-V3-616.9 R3 candidate) |
+| 11 | **PQC (Post-Quantum Cryptography)** | 🟠 In Progress (Keccak instructions in development, has Ratification Plan) | Has plan, milestones per wiki | **Markku-Juhani Saarinen** (chair) / **Nicolas Brunie** (vice-chair) | 🟡 Indirect (most distant, no direct KMHv3 demand) |
+
+**Legend**:
+- 🔴 **Direct relevance**: Blocks or directly enables KMHv3 delivery path
+- 🟠 **Strong relevance**: Affects KMHv3 architectural decisions or long-term roadmap
+- 🟡 **Indirect relevance**: Informative for competitive analysis or future evolution
+
+### 5.4.2 Research Sources (T191.2a/b/c notepads)
+
+- `.sisyphus/notepads/T191/research-T191.2a.md` (IOPMP, Fast Interrupts, AME)
+- `.sisyphus/notepads/T191/research-T191.2b.md` (Packed SIMD, SPMP, SmMTT, CHERI)
+- `.sisyphus/notepads/T191/research-T191.2c.md` (CoVE, Security Model, CoVE-IO, PQC)
+
+**Validation Methodology**:
+1. For each TG: fetch latest spec version from canonical GitHub repo
+2. Extract: Status, latest version, ratification target, chair(s)
+3. Cross-reference KMHv3 requirements (grep `bosc/` and `.sisyphus/` for demand numbers)
+4. Tag relevance level: 🔴 Direct blocking / 🟠 Strong / 🟡 Indirect
+
+---
+
+## 5.5 OpaVote Tracking Workflow
+
+For systematic tracking of RISC-V governance actions on OpaVote:
+
+### 5.5.1 Vote Type Identification
+
+| Vote Type | Identification Markers | Typical Approver | KMHv3 Relevance Pattern |
+|-----------|----------------------|------------------|------------------------|
+| **TG extension approval** | "1-year extension", "charter renewal" | TSC / BoD | Affects roadmap planning for TGs with KMHv3 linkage |
+| **HC election** | "Chair", "Vice-Chair", "Election" | HC members | Indirect (influences spec direction, not direct blocker) |
+| **Spec freeze** | "Freeze", "Public Review", "Milestone" | SOC Infra HC / Priv HC | High if spec blocks KMHv3 feature (e.g., E-Trace, RHTI) |
+| **Spec ratification** | "Ratification", "Board of Directors", "Ratification-Ready" | TSC → BoD | High if ratified spec becomes requirement for KMHv3 |
+| **Charter update** | "Charter", "Scope change", "Re-charter" | TSC | Medium if scope affects KMHv3-relevant features |
+
+### 5.5.2 Deadline Extraction Process
+
+1. **Source**: RISC-V wiki / OpaVote email / RVI_Governance directory
+2. **Extract**:
+   - Deadline date (absolute or relative to "when all votes submitted")
+   - Urgency level: 🔴 This week / 🟡 Next week / 🟢 Future
+   - Vote type (personnel vs technical)
+   - Approver body (HC, TSC, BoD)
+3. **Prioritize**:
+   - 🔴 Urgent (7/27-7/28): Requires immediate action before missing deadline
+   - 🟡 Next week (7/31-8/4): Plan review window
+   - 🟢 Future: Track for upcoming milestone
+
+### 5.5.3 KMHv3 Impact Analysis Workflow
+
+For each OpaVote:
+
+1. **Direct Blocking Assessment**:
+   - Does this vote block KMHv3 delivery path? (Y/N)
+   - Which KMHv3 requirement/deliverable is affected?
+   - What is the risk level if missed? (Critical / High / Medium / Low)
+
+2. **Gap Analysis** (for spec-related votes):
+   - Compare with Arm/x86 analogue (e.g., Arm CoreSight for E-Trace/RHTI)
+   - Verify spec coverage of KMHv3 requirements
+   - Check integration with related specs
+
+3. **Positive/Negative Factor Identification**:
+   - Positive: Mature ecosystem, aligns with KMHv3 needs
+   - Negative: Fast timeline (less review time), potential gaps, version immaturity
+
+4. **Output**: Record in `bosc/Cooperation_RD/RVI_Governance/` directory with:
+   - Vote metadata (type, deadline, approver, OpaVote link)
+   - KMHv3 relevance tag (🔴 Direct / 🟡 Indirect)
+   - Impact analysis (positive/negative factors)
+   - Gap analysis needs (post-vote or pre-ratification)
+
+### 5.5.4 Recording Format
+
+**File naming**: `T191-OpaVote-YYYYMMDD.md` (per analysis cycle)
+
+**Report structure** (example: `bosc/Cooperation_RD/RVI_Governance/T191-OpaVote-20260726.md`):
+
+```markdown
+## Executive Summary
+- Total votes: X
+- Urgency breakdown: Y this week, Z next week
+- KMHv3 blocking: N votes
+
+## Part 1: Urgent OpaVote (This Week Deadlines)
+Vote #N: [Title]
+| Attribute | Value |
+|-----------|-------|
+| Vote Type | Personnel Election / Technical Spec |
+| Deadline | 🔴 July XX, 2026 |
+| Approver | HC / TSC / BoD |
+| OpaVote Link | https://opavote.com/en/vote/XXXXXXXX |
+
+KMHv3 Relevance: 🔴 Direct / 🟡 Indirect
+- [Specific KMHv3 impact analysis]
+
+## Part 2: Next Week OpaVote
+[Similar structure for less urgent votes]
+```
+
+**Example Output**: See `T191.8c` output in `bosc/Cooperation_RD/RVI_Governance/T191-OpaVote-20260726.md` (6 OpaVote analysis covering 4 urgent + 2 next-week votes; 4 blocking KMHv3: RVA23.1, Server SoC II TG, E-Trace, RHTI)
+
+**CRITICAL**: This skill tracks governance actions for **research and monitoring purposes only**. Do NOT make voting recommendations. Document analysis, let human decision-makers vote.
+
+---
+
+## 6. Agent Roles (Internal Coordination)
 
 | Role | Owns |
 |---|---|
@@ -218,10 +345,11 @@ Apply all six dimensions for every comparison. Skip none.
 | Security & Confidential Computing Analyst | Zicfiss/Zicfilp, Pointer Masking Zpm, Zimt/Svatag, CoVE/Smmtt, DRAM encryption, PCIe IDE, RoT |
 | Observability & Software Integrator | Linux kernel version evidence, perf/PMU/trace, IOMMU/resctrl/APEI, toolchain support; checks LWN for latest RFC merge status |
 | Competitive Systems Analyst | Arm Neoverse V2/V3, Intel Xeon SPR/GNR, AMD EPYC Genoa/Turin, NVIDIA Grace, CXL/UCIe-based systems, RISC-V vendor SoCs (SiFive P870, Ventana Veyron C1, XiangShan) — always tier-1 grounded, version-tagged |
+| **Governance Tracker** | **NEW**: TG charter extensions, OpaVote votes, HC elections, spec freezes/ratifications; extracts deadlines, analyzes KMHv3 impact, records in `RVI_Governance/` directory |
 
 ---
 
-## 6. Interaction Protocol
+## 7. Interaction Protocol
 
 For every request activating this skill:
 
