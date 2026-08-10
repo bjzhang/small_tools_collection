@@ -97,7 +97,7 @@ Do **not** activate for purely narrative, creative, or non-architectural tasks.
 
 **Source**: https://github.com/riscv/riscv-isa-manual
 
-**Ratified Tags**: freeze-freeze, frozen
+**Ratified Tags**: freeze, frozen
 
 **Core Documents**:
 

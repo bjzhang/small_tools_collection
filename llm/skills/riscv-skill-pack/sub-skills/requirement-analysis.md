@@ -11,7 +11,7 @@ description: >
   the current revision/next revision/future revision feature horizon.
   (3) Requirement query — intelligent lookup over requirement document sets with
   structured answers, member-need cross-referencing, and spec-priority mapping.
-license: MIT
+license: Apache-2.0
 metadata:
   author: riscv-skill-pack
   version: '1.0'
@@ -541,7 +541,7 @@ your-project/RISC-V_CPU_requirement/
 |-- 04-02-00-Delivery-configurable-CPU-subsystem.md      # CPU subsystem overview (RAS, QoS, BMC)
 |-- 04-02-01-Compliance-with-RVA23.1-server-platform-v1.0.md  # RVA23 compliance
 |-- 04-02-02-Single-core-SPEC06-65point.md               # Single-core performance
-|-- 04-02-03-Scale-up-no-less-then-128-cores.md         # Scale-up capability
+|-- 04-02-03-Scale-up-no-less-than-128-cores.md         # Scale-up capability
 |-- 04-02-04-multi-core-performance-linear-more-than-0.7.md  # Multi-core scalability
 |-- 04-02-08-Support-server-level-confidential-security.md    # Security
 |-- 04-02-11-Support-vector-matrix-acceleration-for-LLM.md    # LLM acceleration
@@ -571,7 +571,7 @@ For each query, extract:
 #### 4. Spec Priority Mapping
 Return references in this priority order:
 1. UDB (user database record, if exists)
-2. Nomination rules
+2. Normative rules
 3. RISC-V Foundation spec (RVA23.1 Server Platform 1.0)
 
 ### Output Format
@@ -602,7 +602,7 @@ Return references in this priority order:
 
 ### Spec Priority
 1. UDB: [reference record]
-2. Nomination rules: [reference record]
+2. Normative rules: [reference record]
 3. RISC-V Foundation: RVA23.1 Server Platform 1.0
 
 ### Notes

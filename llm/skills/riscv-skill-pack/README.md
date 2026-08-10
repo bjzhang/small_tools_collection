@@ -16,7 +16,7 @@
 
 ### 前提条件
 
-- [OpenCode](https://github.com/) 环境已配置并可加载 skill
+- OpenCode 环境已配置并可加载 skill
 - Skill 目录已纳入 OpenCode 的 skill 搜索路径
 - （可选）如果要使用 `gap-analysis` 的幻灯片生成流程，需要能够产出
   PPTX 的工具链（例如 python-pptx 或等价工具）

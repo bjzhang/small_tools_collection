@@ -416,7 +416,7 @@ These are universal RISC-V / computer-architecture terms. Keep them in English
 in both Chinese and English documents to avoid ambiguity.
 
 ```
-ARM Neoverse
+Arm Neoverse
 RVA23 / RVA22 / RVB23
 H-extension / H-ext
 AIA / IMSIC / APLIC
