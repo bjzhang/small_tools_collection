@@ -1,20 +1,21 @@
 ---
 name: riscv-skill-pack
 version: "1.0"
-updated: "2026-07-21"
+updated: "2026-08-11"
 description: >
   One-stop RISC-V skill pack covering specification learning, gap analysis,
-  requirement analysis, and ecosystem governance. Points to four specialized
-  sub-skills under sub-skills/. Activate whenever a task touches RISC-V ISA
-  specs, feature gap analysis, CPU requirement management, or upstream Task
-  Group governance.
+  requirement analysis, ecosystem governance, and upstream test-suite
+  donation. Points to five specialized sub-skills under sub-skills/. Activate
+  whenever a task touches RISC-V ISA specs, feature gap analysis, CPU
+  requirement management, upstream Task Group governance, or contributing
+  test suites to RVI repositories.
 license: Apache-2.0
 ---
 
 # RISC-V Skill Pack
 
 > **Meta-skill / entry point.** This file is a dispatcher: it tells you which
-> sub-skill to load for a given task. The actual workflows live in the four
+> sub-skill to load for a given task. The actual workflows live in the five
 > files under `sub-skills/`. Always load the relevant sub-skill before
 > executing — this file only routes.
 
@@ -22,9 +23,9 @@ license: Apache-2.0
 
 ## 概述 (Overview)
 
-RISC-V **规范学习、Gap 分析、需求分析、治理跟进** 的一站式 skill pack。
+RISC-V **规范学习、Gap 分析、需求分析、治理跟进、测试套件捐献** 的一站式 skill pack。
 
-The pack consolidates four previously separate skills into a single,
+The pack consolidates five previously separate skills into a single,
 role-aware entry point. Each sub-skill is self-contained and can be loaded
 independently. This file helps you pick the right one.
 
@@ -48,6 +49,7 @@ independently. This file helps you pick the right one.
 | **gap-analysis** | `sub-skills/gap-analysis.md` | Single-feature Gap Analysis doc (9-section markdown, §1 Exec Summary → §9 Revision Log) + strict 3-slides-per-feature PPTX review deck sourced exclusively from the doc | Feature 差距 deep-dive (MMIO Outstanding, HW Profiling, Vectorization, I/D Coherent); red-line conflict resolution; F{N} gap docs; review 评审 PPT |
 | **requirement-analysis** | `sub-skills/requirement-analysis.md` | Requirement analysis workflow (spec → feature-mapping CSV with source tags & mapping types) + feature list reference (SoC features, platform requirements, Rx Arch Freeze) + requirement document query | SoC 功能规划; release gate freeze; consultant-visible vs internal release zip; V2R2→V3R3 delta queries; member-need cross-referencing |
 | **governance** | `sub-skills/governance.md` | Task Group (TG) spec maturity tracking + ratification milestone monitoring + partner requirement transmission (9-dimension framework, 7-step process) + bilingual (CN↔EN) technical glossary | "Will spec X ratify before delivery milestone Y?"; partner requirement baseline transmission; acceptance-failure root cause; architecture document translation |
+| **test-suite-donation** | `sub-skills/test-suite-donation.md` | Upstream test-suite donation workflow (riscv-arch-test act4 branch) + engineering gotchas (.gitignore swallows, BSD vs GNU sed, missing target dirs) + coverage engineering methodology (redundancy≠deletion, bitwalk walking-1 minimal set, "不可删" checklist) + finding severity classification | Contributing H-ext / Vector / Matrix test suites to RVI Task Groups; setting up donation branches; auditing coverage points before PR submission; cross-platform shell scripting for test generation/maintenance |
 
 > **Loading convention**: reference sub-skills by relative path from this
 > file, e.g. `sub-skills/spec-learning.md`. Do not hardcode absolute paths.
@@ -60,7 +62,7 @@ independently. This file helps you pick the right one.
 |------|-------------------|-----------|---------------|
 | **Software Developer** (软件开发) | `spec-learning`, `requirement-analysis` | `gap-analysis` | 查询 ISA spec / CSR 语义; 理解 SoC feature 需求; 确认 Linux/toolchain 支持状态 |
 | **Hardware Developer** (硬件开发) | `spec-learning`, `gap-analysis` | `requirement-analysis` | 规范映射 (RISC-V ↔ Arm/x86); feature gap 分析; 红线冲突识别 |
-| **Verification Engineer** (验证) | `spec-learning`, `gap-analysis` | `requirement-analysis` | 规范验证 (MUST/SHOULD/MAY); gap 文档证据复核; GitHub 仓库实现状态交叉验证 |
+| **Verification Engineer** (验证) | `spec-learning`, `gap-analysis`, `test-suite-donation` | `requirement-analysis` | 规范验证 (MUST/SHOULD/MAY); gap 文档证据复核; GitHub 仓库实现状态交叉验证; 向 upstream 捐献测试套件 (H-ext/Vector); coverage 审计与 PR 准备 |
 | **Product Manager** (PM) | `requirement-analysis`, `governance` | `spec-learning`, `gap-analysis` | 需求矩阵管理; Rx Arch Freeze; TG 跟进; 会员/伙伴协作; release zip 打包 |
 | **Architect** (架构师) | `spec-learning`, `gap-analysis`, `requirement-analysis` | `governance` | 竞品架构对比; Tier-1 证据映射; V2R2→V3R3 delta; 投资与竞争分析 |
 
@@ -78,6 +80,8 @@ Load **this entry file** when a task involves any of:
 - Building, refreshing, or querying a CPU requirement matrix.
 - Tracking a Task Group's spec maturity or transmitting requirements to a partner.
 - Translating architecture documents (CN ↔ EN) with consistent terminology.
+- Contributing test suites (H-ext / Vector / Matrix) to upstream RISC-V
+  repositories, or auditing coverage points before a donation PR.
 
 Then **dispatch** to the matching sub-skill using the Feature Overview table
 above. Do not execute the workflow from this file — load the sub-skill.
@@ -158,7 +162,8 @@ riscv-skill-pack/
 │   ├── spec-learning.md              ← ISA spec navigation + Tier-1 mapping
 │   ├── gap-analysis.md               ← Gap doc (Part 1) + review slides (Part 2)
 │   ├── requirement-analysis.md       ← Requirement workflow + feature list + query
-│   └── governance.md                 ← TG tracking + partner comms + glossary
+│   ├── governance.md                 ← TG tracking + partner comms + glossary
+│   └── test-suite-donation.md        ← Upstream test-suite donation + coverage engineering
 ├── examples/                         ← (populated in later task)
 ├── README.md                         ← public-facing readme (populated in later task)
 └── LICENSE                           ← Apache-2.0
