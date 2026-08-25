@@ -1,0 +1,3 @@
+[submodule "XiangShanLab"]
+	path = XiangShanLab
+	url = git@github.com:OpenXiangShan/XiangShanLab.git
