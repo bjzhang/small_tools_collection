@@ -1,3 +1,6 @@
 [submodule "XiangShanLab"]
 	path = XiangShanLab
 	url = git@github.com:OpenXiangShan/XiangShanLab.git
+[submodule "RISC-V_learning"]
+	path = RISC-V_learning
+	url = git@github.com:bjzhang/RISC-V_learning.git
