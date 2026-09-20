@@ -31,6 +31,8 @@
 | `prompt-data-source-tagging.md` | 数据来源分类标注：✅硅后实测 / ⚠️厂商发布指标 / 推算 / 估算 |
 | `prompt-tool-capability-verification.md` | 工具能力核实：在文章声称工具支持某能力前，拆解并独立核实边界 |
 
+- skill-commit-message.md — Commit Message 规范（草稿）：标题成分枚举、正文四段结构、OMO review 标注分级、amend 纪律
+
 ---
 
 ## 快速使用
